@@ -2,11 +2,15 @@ fastapi
 uvicorn
 sqlalchemy
 pymysql
+cryptography
 beautifulsoup4
 langchain
 langchain-community
+langchain-core
 langchain-google-genai
+langchain-text-splitters
 sentence-transformers
 faiss-cpu
 python-multipart
 requests
+python-dotenv
