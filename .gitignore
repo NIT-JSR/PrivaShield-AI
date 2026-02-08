@@ -1,0 +1,18 @@
+# General
+.DS_Store
+.vscode/
+.idea/
+
+# Backend (Node.js)
+backend/node_modules/
+backend/dist/
+backend/coverage/
+backend/.env
+backend/build/
+
+# RAG (Python)
+rag/__pycache__/
+rag/*.pyc
+rag/.venv/
+rag/venv/
+rag/.env
