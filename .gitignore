@@ -2,17 +2,50 @@
 .DS_Store
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Backend (Node.js)
-backend/node_modules/
+# Environment Variables & Secrets
+.env
+env/
+venv/
+ENV/
+.venv/
+
+# Python (General)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# RAG Specific
+*.faiss
+*.pkl
+rag/storage/
+
+# Node.js / Backend
+node_modules/
+npm-debug.log
+yarn-error.log
 backend/dist/
 backend/coverage/
-backend/.env
 backend/build/
-
-# RAG (Python)
-rag/__pycache__/
-rag/*.pyc
-rag/.venv/
-rag/venv/
-rag/.env
