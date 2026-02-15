@@ -24,8 +24,9 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0.3)
 
 # Initialize Embeddings (Runs locally, free)
 # We use a lightweight model for speed
-embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
+# Old general-purpose model
+# New Legal-specific understanding model
+embedding_model = HuggingFaceEmbeddings(model_name="nlpaueb/legal-bert-base-uncased")
 
 def clean_html(raw_html: str) -> str:
     """
@@ -44,7 +45,7 @@ def clean_html(raw_html: str) -> str:
     return "\n".join(clean_lines)
 
 
-def process_policy(html_content: str, url_hash: str) -> Tuple[str, str]:
+def process_policy(html_content: str, url_hash: str,existing_summary: str = None) -> Tuple[str, str]:
     """
     Main Pipeline:
     1. Cleans HTML.
@@ -59,8 +60,8 @@ def process_policy(html_content: str, url_hash: str) -> Tuple[str, str]:
 
     # 2. Chunking (Split text into manageble pieces)
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000,
-        chunk_overlap=200
+        chunk_size=1000,
+        chunk_overlap=400
     )
     docs = text_splitter.create_documents([clean_text])
 
@@ -72,6 +73,9 @@ def process_policy(html_content: str, url_hash: str) -> Tuple[str, str]:
     # FAISS saves a folder, so we name it "storage/hash_index"
     save_path = os.path.join(STORAGE_DIR, f"{url_hash}_index")
     vector_db.save_local(save_path)
+    if existing_summary:
+        print(f"Skipping LLM summary generation for {url_hash} (Using cached summary)")
+        return existing_summary, save_path
 
     # 4. Generate Summary (Using Gemini)
     # We send the first 15,000 chars to Gemini (Flash handles big context easily)
@@ -107,25 +111,69 @@ def chat_with_policy(query: str, vector_path: str) -> str:
     if not os.path.exists(vector_path):
         return "Error: Policy data not found. Please refresh the analysis."
 
+    expansion_prompt = f"""
+    You are an AI assistant optimizing queries for a Privacy Policy search.
+    The user asked: "{query}"
+    
+    Generate 2 variations of this question to improve retrieval from a legal document:
+    1. A keyword-heavy version (using terms like 'legal basis', 'consent', 'third-party', 'opt-out').
+    2. A version asking about specific mechanisms or tools mentioned in the policy.
+    
+    Output ONLY the 2 variations separated by a new line. Do not number them.
+    """
+    
+    try:
+        # Generate the better queries
+        expanded_response = llm.invoke(expansion_prompt)
+        variations = expanded_response.content.strip().split('\n')
+        # Add the original query to the list
+        search_queries = [query] + [v.strip() for v in variations if v.strip()]
+    except:
+        # If expansion fails, just use original
+        search_queries = [query]
+
+    print(f"🔎 Searching with queries: {search_queries}")
+    
+    
     # 1. Load the Vector DB from disk
     # We must allow dangerous deserialization because we trust our own files
     vector_db = FAISS.load_local(vector_path, embedding_model, allow_dangerous_deserialization=True)
 
     # 2. Search for relevant chunks (RAG)
-    # Get top 3 chunks related to the question
-    docs = vector_db.similarity_search(query, k=3)
-    context = "\n\n".join([d.page_content for d in docs])
-    print(context) # Debug: See what context we're sending to Gemini
-    # 3. Ask Gemini
+    all_docs = []
+    for q in search_queries:
+        # Fetch top 4 chunks for EACH variation
+        docs = vector_db.similarity_search(q, k=4)
+        all_docs.extend(docs)
+
+    # Remove duplicates (because different queries might find the same chunk)
+    unique_docs = {}
+    for doc in all_docs:
+        unique_docs[doc.page_content] = doc # specific content is the key
+    
+    # Combine the unique chunks
+    final_docs = list(unique_docs.values())
+    context = "\n\n".join([d.page_content for d in final_docs])
     prompt = f"""
-    Answer the user's question based strictly on the privacy policy context provided below.
-    If the answer is not in the context, say "I cannot find that information in the policy."
-    
-    Context:
-    {context}
-    
-    User Question: {query}
-    """
+You are answering questions using a privacy policy document.
+
+Instructions:
+- Answer ONLY using the information found in the context.
+- Do NOT add outside knowledge.
+- Provide a concise, structured answer.
+- If multiple parts of the answer exist, summarize them clearly.
+- If the answer is not found, say:
+  "Hehe, I cannot find that information in the policy."
+
+Context:
+{context}
+
+Question:
+{query}
+
+Answer:
+"""
+
     
     response = llm.invoke(prompt)
     return response.content

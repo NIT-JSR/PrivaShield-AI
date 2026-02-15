@@ -59,16 +59,16 @@ def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     if existing_scan and existing_scan.vector_index_path and os.path.exists(existing_scan.vector_index_path):
         return AnalyzeResponse(
             status="cached",
-            summary=existing_scan.risk_summary
+            summary=existing_scan.summary
         )
 
     # PROCESS NEW SCAN
     # 1. Create unique hash for filenames
     url_hash = hashlib.md5(request.url.encode()).hexdigest()
-    
+    saved_summary = existing_scan.summary if existing_scan else None
     # 2. Run AI Engine (Clean -> Embed -> Save Index)
     try:
-        summary, vector_path = ai_engine.process_policy(request.html, url_hash)
+         summary,vector_path = ai_engine.process_policy(request.html, url_hash,existing_summary=saved_summary)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Processing Failed: {str(e)}")
 
@@ -78,7 +78,7 @@ def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     # 3. Save Metadata to MySQL
     # If entry existed but file was missing (server restart), update it. Otherwise create new.
     if existing_scan:
-        existing_scan.risk_summary = summary
+        existing_scan.summary = summary
         existing_scan.vector_index_path = vector_path
         db.commit()
     else:
@@ -116,4 +116,5 @@ if __name__ == "__main__":
     import uvicorn
     # Create Tables on startup if they don't exist
     database.init_db()
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000,
+                reload_excludes=["storage/*", "*.log", "test.py"])
