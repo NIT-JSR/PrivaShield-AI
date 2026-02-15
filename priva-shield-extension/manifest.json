@@ -1,0 +1,30 @@
+{
+    "manifest_version": 3,
+    "name": "PrivaShield",
+    "version": "1.0.0",
+    "description": "AI-powered privacy policy analyzer that helps you understand website privacy policies",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "src/background/background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "src/content/contentScript.js"
+            ]
+        }
+    ]
+}
