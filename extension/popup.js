@@ -8,7 +8,7 @@
 // ──────────────────────────────────────────────
 
 let state = {
-    apiBaseUrl: "http://localhost:8000",
+    apiBaseUrl: "http://localhost:5000/api/rag",
     currentUrl: "",
     currentHtml: "",
     analysisData: null,
