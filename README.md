@@ -76,64 +76,53 @@ PrivaShield-AI/
 
 ---
 
-## ⚡ Quick Start
+## 🚀 Quick Start (Unified Launcher)
 
-### Prerequisites
-- **Python 3.9+**
-- **Node.js 18+**
-- **MySQL** (or modify `database.py` for SQLite)
-- **Google Gemini API Key** ([Get one here](https://aistudio.google.com/app/apikey))
+If you are on **Windows**, we have provided a unified PowerShell script to launch all three services (**AI Engine**, **Backend Gateway**, and **Frontend**) simultaneously in separate windows:
+
+1. Open a **PowerShell** terminal in the root directory.
+2. Run the unified launcher:
+   ```powershell
+   .\run_all.ps1
+   ```
+3. Three new windows will open. Once they are initialized, you can access the dashboard at:
+   👉 **[http://localhost:5173](http://localhost:5173)**
+
+---
+
+## 🛠️ Manual Setup
+
+If you prefer to start components individually, follow these steps:
 
 ### 1. RAG Engine (Python)
-
+The engine uses **SQLite** by default (zero-config).
 ```bash
 cd rag
-
-# Create virtual environment
 python -m venv venv
-venv\Scripts\activate      # Windows
-# source venv/bin/activate  # Mac/Linux
-
-# Install dependencies
+venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure API key
-cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY
-
-# Initialize database
-python database.py
-
-# Start the server (with enhanced routes)
+# Add your GOOGLE_API_KEY to .env
 python run.py
-# Server runs on http://localhost:8000
 ```
 
 ### 2. Node.js Gateway
-
 ```bash
 cd backend
 npm install
 npm start
-# Gateway runs on http://localhost:5000
 ```
 
 ### 3. React Frontend
-
 ```bash
 cd frontend
 npm install
 npm run dev
-# Dashboard runs on http://localhost:5173
 ```
 
 ### 4. Chrome Extension
-
 1. Open Chrome → `chrome://extensions/`
-2. Enable **Developer mode** (toggle in top-right)
-3. Click **Load unpacked**
-4. Select the `extension/` folder
-5. The 🛡️ PrivaShield icon appears in your toolbar
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the `extension/` folder.
 
 ---
 
