@@ -127,6 +127,41 @@ export default function LandingPage({ onNavigate }) {
                 </div>
             </section>
 
+            {/* ─── ABOUT TEAM ─── */}
+            <section className="ps-about" id="about" style={{ padding: '6rem 2rem', textAlign: 'center' }}>
+                <div className="ps-section-title">
+                    <h3>About the Team</h3>
+                    <p>Meet the PrivaShield AI Team from NIT Jamshedpur.</p>
+                </div>
+                <div className="ps-features-grid">
+                    <div className="ps-feature-card">
+                        <span className="ps-feature-icon">👑</span>
+                        <h4>Prince</h4>
+                        <p>Team Leader / Full Stack Developer</p>
+                    </div>
+                    <div className="ps-feature-card">
+                        <span className="ps-feature-icon">👨‍💻</span>
+                        <h4>Harsha</h4>
+                        <p>Team Member / Developer</p>
+                    </div>
+                    <div className="ps-feature-card">
+                        <span className="ps-feature-icon">👨‍💻</span>
+                        <h4>Shivagya</h4>
+                        <p>Team Member / Developer</p>
+                    </div>
+                    <div className="ps-feature-card">
+                        <span className="ps-feature-icon">👨‍💻</span>
+                        <h4>Satyam</h4>
+                        <p>Team Member / Developer</p>
+                    </div>
+                    <div className="ps-feature-card">
+                        <span className="ps-feature-icon">👨‍💻</span>
+                        <h4>Ashutosh</h4>
+                        <p>Team Member / Developer</p>
+                    </div>
+                </div>
+            </section>
+
             {/* ─── FOOTER ─── */}
             <footer className="ps-footer">
                 <p>

@@ -20,6 +20,7 @@ export default function PrivaShield() {
                     <li><a href="#" onClick={() => setPage('dashboard')}>Dashboard</a></li>
                     <li><a href="#" onClick={() => setPage('chat')}>Chatbot</a></li>
                     <li><a href="#features">Features</a></li>
+                    <li><a href="#about">About</a></li>
                 </ul>
                 <button className="ps-nav-cta" onClick={() => setPage('dashboard')}>
                     Analyze Policy
