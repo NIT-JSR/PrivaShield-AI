@@ -135,29 +135,29 @@ export default function LandingPage({ onNavigate }) {
                 </div>
                 <div className="ps-features-grid">
                     <div className="ps-feature-card">
-                        <span className="ps-feature-icon">👑</span>
+                        <span className="ps-feature-icon">🛡️</span>
                         <h4>Prince</h4>
-                        <p>Team Leader / Full Stack Developer</p>
+                        <p>Chief Privacy Architect</p>
                     </div>
                     <div className="ps-feature-card">
-                        <span className="ps-feature-icon">👨‍💻</span>
+                        <span className="ps-feature-icon">⛏️</span>
                         <h4>Harsha</h4>
-                        <p>Team Member / Developer</p>
+                        <p>Policy Miner & API Specialist</p>
                     </div>
                     <div className="ps-feature-card">
-                        <span className="ps-feature-icon">👨‍💻</span>
+                        <span className="ps-feature-icon">🧠</span>
                         <h4>Shivagya</h4>
-                        <p>Team Member / Developer</p>
+                        <p>RAG Engine Strategist</p>
                     </div>
                     <div className="ps-feature-card">
-                        <span className="ps-feature-icon">👨‍💻</span>
+                        <span className="ps-feature-icon">🕵️‍♂️</span>
                         <h4>Satyam</h4>
-                        <p>Team Member / Developer</p>
+                        <p>Threat Intelligence Analyst</p>
                     </div>
                     <div className="ps-feature-card">
-                        <span className="ps-feature-icon">👨‍💻</span>
+                        <span className="ps-feature-icon">🧩</span>
                         <h4>Ashutosh</h4>
-                        <p>Team Member / Developer</p>
+                        <p>Extension & UX Engineer</p>
                     </div>
                 </div>
             </section>

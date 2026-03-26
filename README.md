@@ -180,11 +180,11 @@ curl -X POST http://localhost:8000/analyze \
 
 Built by the PrivaShield AI Team — **NIT Jamshedpur**
 
-- **Prince** — Team Leader / Full Stack Developer
-- **Harsha** — Team Member / Developer
-- **Shivagya** — Team Member / Developer
-- **Satyam** — Team Member / Developer
-- **Ashutosh** — Team Member / Developer
+- **Prince** — Chief Privacy Architect
+- **Harsha** — Policy Miner & API Specialist
+- **Shivagya** — RAG Engine Strategist
+- **Satyam** — Threat Intelligence Analyst
+- **Ashutosh** — Extension & UX Engineer
 
 
 ## 📄 License
