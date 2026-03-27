@@ -6,8 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 # Import our custom modules
-import database
-from database import get_db, ProcessedSite
+import database_lite as database
+from database_lite import get_db, ProcessedSite
 import ai_engine
 
 app = FastAPI(title="PrivacyLens API", version="1.0")

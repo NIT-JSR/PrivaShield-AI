@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 # Import existing modules
 import ai_engine
-import database
-from database import get_db
+import database_lite as database
+from database_lite import get_db
 import risk_analyzer
 
 enhanced_router = APIRouter(tags=["Enhanced Analysis"])
