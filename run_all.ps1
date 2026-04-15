@@ -5,7 +5,7 @@ Write-Host "[PrivaShield] Starting Services..." -ForegroundColor Cyan
 
 # 1. RAG Engine (Python FastAPI)
 Write-Host "[1/3] Launching Python RAG Engine (Port 8000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd rag; venv\Scripts\activate; python run.py" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd rag; venv\Scripts\activate; python start_server.py" -WindowStyle Normal
 
 # 2. Backend Gateway (Node.js Express)
 Write-Host "[2/3] Launching Node.js Backend Gateway (Port 5000)..." -ForegroundColor Yellow
