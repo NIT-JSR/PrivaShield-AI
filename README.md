@@ -32,7 +32,7 @@ Frontend (Chrome Extension / React Dashboard)
   │  Text Cleaning + Section Chunking   │
   │  Embeddings (MiniLM-L6-v2)         │
   │  Vector DB (FAISS)                  │
-  │  AI Analysis (Gemini 2.5 Flash)    │
+  │  AI Analysis (Groq)    │
   │  Risk Analyzer + Permission Mapper  │
   └─────────────────────────────────────┘
 ```
@@ -155,8 +155,8 @@ curl -X POST http://localhost:8000/analyze \
 3. **Chunking** — RecursiveCharacterTextSplitter creates overlapping chunks (2000 tokens, 200 overlap)
 4. **Embeddings** — `sentence-transformers/all-MiniLM-L6-v2` generates vector embeddings
 5. **Vector Storage** — FAISS indexes chunks for semantic search
-6. **AI Analysis** — Gemini 2.5 Flash analyzes for risks, permissions, hidden clauses
-7. **RAG Chat** — User questions → FAISS similarity search → Gemini generates contextual answers
+6. **AI Analysis** — Groq analyzes for risks, permissions, hidden clauses
+7. **RAG Chat** — User questions → FAISS similarity search → Groq generates contextual answers
 
 ---
 
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8000/analyze \
 | Frontend | React 19, Vite 7 |
 | API Gateway | Node.js, Express |
 | RAG Engine | Python, FastAPI |
-| AI/LLM | Google Gemini 2.5 Flash |
+| AI/LLM | Groq |
 | Embeddings | sentence-transformers (MiniLM-L6-v2) |
 | Vector DB | FAISS |
 | Database | MySQL + SQLAlchemy |
