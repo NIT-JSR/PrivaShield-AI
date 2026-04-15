@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -13,6 +13,7 @@ COPY . .
 # Setup local storage directory for SQLite persistence
 RUN mkdir -p storage
 
+ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Using run.py as the entrypoint
