@@ -17,7 +17,7 @@ class ProcessedSite(Base):
     id = Column(Integer, primary_key=True, index=True)
     url_hash = Column(String(64), unique=True, index=True) # The Lookup Key
     url = Column(Text, nullable=False)
-    risk_summary = Column(Text, nullable=True)             # The AI Summary
+    summary = Column(Text, nullable=True)     
     vector_index_path = Column(String(255), nullable=True) # Path to FAISS file
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -33,7 +33,7 @@ def create_scan(db: Session, url: str, summary: str, index_path: str):
     db_scan = ProcessedSite(
         url_hash=url_hash,
         url=url,
-        risk_summary=summary,
+        summary=summary,
         vector_index_path=index_path
     )
     
