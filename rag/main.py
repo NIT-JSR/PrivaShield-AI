@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
+import httpx
 # Import our custom modules
 import database_lite as database
 from database_lite import get_db, ProcessedSite
@@ -37,6 +37,9 @@ class AnalyzeResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+
+class URLRequest(BaseModel):
+    url: str
 
 # --- 3. ENDPOINTS ---
 
@@ -111,10 +114,31 @@ def chat_policy(request: ChatRequest, db: Session = Depends(get_db)):
     
     return ChatResponse(answer=answer)
 
+@app.post("/fetch-html")
+async def fetch_html(request: URLRequest):
+    try:
+        # We use an async client to keep FastAPI fast
+        async with httpx.AsyncClient() as client:
+            # Adding a standard User-Agent prevents many websites from blocking the request
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            
+            # Fetch the URL
+            response = await client.get(request.url, headers=headers, follow_redirects=True)
+            response.raise_for_status() # Throw an error if we get a 404, 500, etc.
+            
+            return {"html": response.text}
+            
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Target URL returned an error: {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch URL: {str(e)}")
+
+
+
 # --- 4. STARTUP ---
 if __name__ == "__main__":
     import uvicorn
     # Create Tables on startup if they don't exist
     database.init_db()
-    uvicorn.run(app, host="0.0.0.0", port=8000,
+    uvicorn.run(app, host="0.0.0.0", port=8000,reload=True,
                 reload_excludes=["storage/*", "*.log", "test.py"])

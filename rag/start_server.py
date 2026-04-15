@@ -12,7 +12,7 @@ It uses SQLite instead of MySQL for zero-config setup.
 import os
 import sys
 import hashlib
-
+import httpx
 # Patch: Replace database module with SQLite version BEFORE importing main
 import database_lite as database
 sys.modules['database'] = database
@@ -81,6 +81,11 @@ class FullAnalysisResponse(BaseModel):
     risk_data: dict
     permission_data: dict
     hidden_clauses_data: dict
+
+
+class URLRequest(BaseModel):
+    url: str
+
 
 # ──────────────────────────────────────────────
 #  ORIGINAL ENDPOINTS
@@ -189,6 +194,28 @@ def get_full_analysis(request: AnalyzeRequest, db: Session = Depends(get_db)):
         permission_data=full_data["permission_mapping"],
         hidden_clauses_data=full_data["hidden_clauses_analysis"]
     )
+
+
+@app.post("/fetch-html")
+async def fetch_html(request: URLRequest):
+    try:
+        # We use an async client to keep FastAPI fast
+        async with httpx.AsyncClient() as client:
+            # Adding a standard User-Agent prevents many websites from blocking the request
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            
+            # Fetch the URL
+            response = await client.get(request.url, headers=headers, follow_redirects=True)
+            response.raise_for_status() # Throw an error if we get a 404, 500, etc.
+            
+            return {"html": response.text}
+            
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Target URL returned an error: {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch URL: {str(e)}")
+
+
 
 # ──────────────────────────────────────────────
 #  STARTUP
