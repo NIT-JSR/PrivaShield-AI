@@ -187,6 +187,58 @@ Built by the PrivaShield AI Team — **NIT Jamshedpur**
 - **Ashutosh** — Extension & UX Engineer
 
 
+## 🔧 Troubleshooting
+
+### `npm install` fails with `ENOSPC` (No space left on device)
+
+The `frontend/` install pulls ~160 packages (Babel, Rollup, ESBuild, ESLint, Vite).  
+If your disk is almost full, the download will fail mid-way and you may also see `zlib: unexpected end of file` errors from corrupt partial archives.
+
+**Fix:**
+
+```powershell
+# 1. Free disk space — the install needs at least ~300–500 MB free
+#    (node_modules ~200 MB + npm cache overhead).
+#    Check available space with:
+Get-PSDrive C
+
+# 2. Clear the corrupted npm cache:
+npm cache clean --force
+
+# 3. Delete the broken node_modules folder (Windows):
+Remove-Item -Recurse -Force frontend\node_modules
+
+# 4. Retry the install:
+cd frontend
+npm install
+```
+
+### `EPERM: operation not permitted` during cleanup (Windows)
+
+This usually means Windows Defender or another process has locked a file inside `node_modules`.
+
+**Fix:**
+
+```powershell
+# Temporarily pause real-time protection, then retry.
+# Or run the terminal as Administrator.
+Remove-Item -Recurse -Force frontend\node_modules
+cd frontend && npm install
+```
+
+### `zlib: unexpected end of file`
+
+This means a downloaded package tarball is corrupted in the local npm cache.
+
+**Fix:**
+
+```powershell
+npm cache clean --force
+npm install
+```
+
+---
+
 ## 📄 License
 
 This project is developed for academic purposes at NIT Jamshedpur.

@@ -52,6 +52,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# npm local cache (if configured via .npmrc cache=.npm)
+.npm/
+
 # Build Outputs (Frontend & Backend)
 dist/
 dist-ssr/
