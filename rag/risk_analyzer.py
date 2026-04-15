@@ -9,11 +9,20 @@ import re
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-load_dotenv()
 
 # Use the same LLM instance configuration as ai_engine
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0.2)
+from langchain_openai import ChatOpenAI
+import os
 
+
+load_dotenv()
+
+llm = ChatOpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("GROQ_API_KEY"),
+    model="openai/gpt-oss-120b",
+    temperature=0.0,
+)
 
 # ──────────────────────────────────────────────
 #  RISK ANALYSIS

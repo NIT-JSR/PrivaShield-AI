@@ -8,20 +8,23 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 # AI & Embeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.documents import Document
 import os
 from dotenv import load_dotenv # <--- Add this
-
+from langchain_openai import ChatOpenAI
 load_dotenv()
 # --- CONFIGURATION ---
 STORAGE_DIR = "storage"
 os.makedirs(STORAGE_DIR, exist_ok=True) # Create folder if not exists
 
-# Initialize Gemini (Make sure GOOGLE_API_KEY is in your environment variables)
-# or pass api_key="Iy..." directly below
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0.3)
 
+
+llm = ChatOpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("GROQ_API_KEY"),
+    model="openai/gpt-oss-120b",
+    temperature=0.0,
+)
 # Initialize Embeddings (Runs locally, free)
 # We use a lightweight model for speed
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
