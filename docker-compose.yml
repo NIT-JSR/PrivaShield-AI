@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  rag:
+    build:
+      context: ./rag
+    container_name: privashield_rag
+    ports:
+      - "8000:8000"
+    volumes:
+      - rag_data:/app/storage
+    env_file:
+      - ./rag/.env
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: privashield_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - RAG_API_URL=http://rag:8000
+      - PORT=5000
+    depends_on:
+      - rag
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: privashield_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  rag_data:
