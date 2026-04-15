@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(
   "/api/rag",
   createProxyMiddleware({
-    target: "http://localhost:8000", // Python Service URL
+    target: process.env.RAG_API_URL || "http://localhost:8000", // Python Service URL Configurable
     changeOrigin: true,
     pathRewrite: {
       "^/api/rag": "", // Strip /api/rag prefix when forwarding to Python
