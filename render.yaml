@@ -14,6 +14,7 @@ services:
   - key: PYTHON_VERSION
     value: 3.11.0
   runtime: python
+  plan: free
 - type: web
   name: privashield-backend
   buildCommand: npm install
@@ -28,6 +29,7 @@ services:
   - key: PORT
     value: '5000'
   runtime: node
+  plan: free
 - type: web
   name: privashield-frontend
   buildCommand: npm install && npm run build
@@ -45,6 +47,7 @@ services:
     destination: /index.html
   runtime: static
   staticPublishPath: dist
+  plan: free
 databases:
 - name: privashield-db
   databaseName: privashield
