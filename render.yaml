@@ -24,7 +24,7 @@ services:
     fromService:
       type: web
       name: privashield-rag
-      property: url
+      property: host
   - key: PORT
     value: '5000'
   runtime: node
