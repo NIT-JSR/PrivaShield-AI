@@ -47,7 +47,6 @@ services:
     destination: /index.html
   runtime: static
   staticPublishPath: dist
-  plan: free
 databases:
 - name: privashield-db
   databaseName: privashield
