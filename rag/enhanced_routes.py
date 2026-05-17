@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 # Import existing modules
 import ai_engine
-import database_lite as database
-from database_lite import get_db
+import database
+from database import get_db
 import risk_analyzer
 
 enhanced_router = APIRouter(tags=["Enhanced Analysis"])
@@ -61,7 +61,7 @@ class FullAnalysisResponse(BaseModel):
 # ──────────────────────────────────────────────
 
 @enhanced_router.post("/risks", response_model=RiskResponse)
-def get_risks(request: PolicyRequest):
+async def get_risks(request: PolicyRequest):
     """
     Analyzes privacy policy for risk factors.
     Returns structured risk data including score, categories, and red flags.
@@ -81,7 +81,7 @@ def get_risks(request: PolicyRequest):
 
 
 @enhanced_router.post("/permissions", response_model=PermissionResponse)
-def get_permissions(request: PolicyRequest):
+async def get_permissions(request: PolicyRequest):
     """
     Maps privacy policy to device-level permissions.
     Explains each permission's purpose and denial consequences.
@@ -101,7 +101,7 @@ def get_permissions(request: PolicyRequest):
 
 
 @enhanced_router.post("/hidden-clauses", response_model=HiddenClauseResponse)
-def get_hidden_clauses(request: PolicyRequest):
+async def get_hidden_clauses(request: PolicyRequest):
     """
     Detects hidden, misleading, or dangerous clauses in the policy.
     """
@@ -120,7 +120,7 @@ def get_hidden_clauses(request: PolicyRequest):
 
 
 @enhanced_router.post("/full-analysis", response_model=FullAnalysisResponse)
-def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db)):
+async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db)):
     """
     Complete analysis pipeline:
     1. Cleans HTML

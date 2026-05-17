@@ -6,8 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import httpx
 # Import our custom modules
-import database_lite as database
-from database_lite import get_db, ProcessedSite
+import database
+from database import get_db, ProcessedSite
 import ai_engine
 
 app = FastAPI(title="PrivacyLens API", version="1.0")
@@ -44,11 +44,11 @@ class URLRequest(BaseModel):
 # --- 3. ENDPOINTS ---
 
 @app.get("/")
-def home():
+async def home():
     return {"message": "PrivacyLens API is running."}
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
+async def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     """
     Receives HTML.
     1. Checks if we already have a scan for this URL in MySQL.
@@ -62,13 +62,13 @@ def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     if existing_scan and existing_scan.vector_index_path and os.path.exists(existing_scan.vector_index_path):
         return AnalyzeResponse(
             status="cached",
-            summary=existing_scan.summary
+            summary=existing_scan.risk_summary
         )
 
     # PROCESS NEW SCAN
     # 1. Create unique hash for filenames
     url_hash = hashlib.md5(request.url.encode()).hexdigest()
-    saved_summary = existing_scan.summary if existing_scan else None
+    saved_summary = existing_scan.risk_summary if existing_scan else None
     # 2. Run AI Engine (Clean -> Embed -> Save Index)
     try:
          summary,vector_path = ai_engine.process_policy(request.html, url_hash,existing_summary=saved_summary)
@@ -81,7 +81,7 @@ def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     # 3. Save Metadata to MySQL
     # If entry existed but file was missing (server restart), update it. Otherwise create new.
     if existing_scan:
-        existing_scan.summary = summary
+        existing_scan.risk_summary = summary
         existing_scan.vector_index_path = vector_path
         db.commit()
     else:
@@ -93,7 +93,7 @@ def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     )
 
 @app.post("/chat", response_model=ChatResponse)
-def chat_policy(request: ChatRequest, db: Session = Depends(get_db)):
+async def chat_policy(request: ChatRequest, db: Session = Depends(get_db)):
     """
     User asks a question about a specific URL.
     We load the FAISS index from disk and answer.

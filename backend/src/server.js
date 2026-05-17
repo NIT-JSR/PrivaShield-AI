@@ -6,7 +6,7 @@ const { createProxyMiddleware } = require("http-proxy-middleware");
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// express.json() removed because it breaks http-proxy-middleware for POST requests
 
 // RAG Service Proxy (Python FastAPI runs on port 8000)
 app.use(

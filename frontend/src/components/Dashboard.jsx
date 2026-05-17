@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "/api/rag";
 
 const PERM_ICONS = {
   Camera: "📷",
@@ -65,20 +65,16 @@ export default function Dashboard() {
 
     try {
       // 1. Ask the backend to fetch the HTML to avoid CORS
-      const { html } = await fetchApi("/fetch-html", { url }); // 2. Run analysis using the HTML we got from our backend
-
-      const [analyzeRes, risksRes, permsRes, hiddenRes] = await Promise.all([
-        fetchApi("/analyze", { url, html }),
-        fetchApi("/risks", { url, html }).catch(() => ({})),
-        fetchApi("/permissions", { url, html }).catch(() => ({})),
-        fetchApi("/hidden-clauses", { url, html }).catch(() => ({})),
-      ]);
+      const { html } = await fetchApi("/fetch-html", { url }); 
+      
+      // 2. Run full analysis using the HTML we got from our backend
+      const fullAnalysisRes = await fetchApi("/full-analysis", { url, html });
 
       setData({
-        summary: analyzeRes.summary || "",
-        risks: risksRes.risk_data || {},
-        permissions: permsRes.permission_data || {},
-        hidden: hiddenRes.hidden_clauses_data || {},
+        summary: fullAnalysisRes.summary || "",
+        risks: fullAnalysisRes.risk_data || {},
+        permissions: fullAnalysisRes.permission_data || {},
+        hidden: fullAnalysisRes.hidden_clauses_data || {},
       });
     } catch (e) {
       setError(
@@ -87,7 +83,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }``
+  }
 
   async function fetchApi(endpoint, body) {
     const res = await fetch(`${API_BASE}${endpoint}`, {

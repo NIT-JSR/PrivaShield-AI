@@ -28,8 +28,10 @@ llm = ChatOpenAI(
 # Initialize Embeddings (Runs locally, free)
 # We use a lightweight model for speed
 # Old general-purpose model
-# New Legal-specific understanding model
-embedding_model = HuggingFaceEmbeddings(model_name="nlpaueb/legal-bert-base-uncased")
+# New lightweight model for high-speed analysis
+print("⏳ Loading AI Embedding Model (First time may take a minute to download)...")
+embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+print("✅ AI Model Loaded!")
 
 def clean_html(raw_html: str) -> str:
     """

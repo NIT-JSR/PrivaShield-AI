@@ -7,7 +7,7 @@ Usage:
     python run.py
 """
 
-import database_lite as database
+import database
 from main import app
 from enhanced_routes import enhanced_router
 
