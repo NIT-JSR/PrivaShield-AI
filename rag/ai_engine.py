@@ -29,9 +29,16 @@ llm = ChatOpenAI(
 # We use a lightweight model for speed
 # Old general-purpose model
 # New lightweight model for high-speed analysis
-print("⏳ Loading AI Embedding Model (First time may take a minute to download)...")
-embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-print("✅ AI Model Loaded!")
+embedding_model = None
+
+def get_embedding_model():
+    global embedding_model
+    if embedding_model is None:
+        print("⏳ Loading AI Embedding Model (First time may take a minute to download)...")
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", model_kwargs={'device': 'cpu'})
+        print("✅ AI Model Loaded!")
+    return embedding_model
 
 def clean_html(raw_html: str) -> str:
     """
@@ -72,7 +79,7 @@ def process_policy(html_content: str, url_hash: str,existing_summary: str = None
 
     # 3. Vector Database (FAISS)
     # This creates the mathematical index of the policy
-    vector_db = FAISS.from_documents(docs, embedding_model)
+    vector_db = FAISS.from_documents(docs, get_embedding_model())
     
     # Save to Disk
     # FAISS saves a folder, so we name it "storage/hash_index"
@@ -142,7 +149,7 @@ def chat_with_policy(query: str, vector_path: str) -> str:
     
     # 1. Load the Vector DB from disk
     # We must allow dangerous deserialization because we trust our own files
-    vector_db = FAISS.load_local(vector_path, embedding_model, allow_dangerous_deserialization=True)
+    vector_db = FAISS.load_local(vector_path, get_embedding_model(), allow_dangerous_deserialization=True)
 
     # 2. Search for relevant chunks (RAG)
     all_docs = []
