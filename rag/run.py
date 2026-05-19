@@ -18,8 +18,8 @@ if __name__ == "__main__":
     import uvicorn
     import os
     database.init_db()
-    print("🛡️  PrivaShield AI starting with enhanced routes...")
-    print("📍 Endpoints available:")
+    print("[PrivaShield AI] starting with enhanced routes...")
+    print("Endpoints available:")
     print("   GET  /           - Health check")
     print("   POST /analyze    - Analyze policy (original)")
     print("   POST /chat       - Chat with policy (original)")

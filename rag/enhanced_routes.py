@@ -139,21 +139,21 @@ async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db
     url_hash = hashlib.md5(request.url.encode()).hexdigest()
 
     try:
-        summary, vector_path = ai_engine.process_policy(request.html, url_hash)
+        summary, _, policy_text = ai_engine.process_policy(request.html, url_hash)
     except Exception as e:
         summary = f"Summary generation failed: {str(e)}"
-        vector_path = ""
+        policy_text = ""
 
-    # Save to database if we got a vector path
-    if vector_path:
+    # Save to database if we got policy text
+    if policy_text:
         try:
             existing = database.get_scan_by_url(db, request.url)
             if existing:
                 existing.risk_summary = summary
-                existing.vector_index_path = vector_path
+                existing.policy_text = policy_text
                 db.commit()
             else:
-                database.create_scan(db, request.url, summary, vector_path)
+                database.create_scan(db, request.url, summary, "", policy_text)
         except Exception:
             pass  # Don't fail the whole analysis if DB save fails
 

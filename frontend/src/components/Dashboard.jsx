@@ -52,36 +52,67 @@ function getScoreLevel(score) {
 
 export default function Dashboard() {
   const [url, setUrl] = useState("");
+  const [inputMode, setInputMode] = useState("url"); // "url" or "text"
+  const [policyText, setPolicyText] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("summary");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
   async function handleAnalyze() {
-    if (!url.trim()) return;
-    setLoading(true);
     setError("");
     setData(null);
 
-    try {
-      // 1. Ask the backend to fetch the HTML to avoid CORS
-      const { html } = await fetchApi("/fetch-html", { url }); 
-      
-      // 2. Run full analysis using the HTML we got from our backend
-      const fullAnalysisRes = await fetchApi("/full-analysis", { url, html });
+    if (inputMode === "url") {
+      if (!url.trim()) return;
+      setLoading(true);
+      try {
+        // 1. Ask the backend to fetch the HTML to avoid CORS
+        const { html } = await fetchApi("/fetch-html", { url }); 
+        
+        // 2. Run full analysis using the HTML we got from our backend
+        const fullAnalysisRes = await fetchApi("/full-analysis", { url, html });
 
-      setData({
-        summary: fullAnalysisRes.summary || "",
-        risks: fullAnalysisRes.risk_data || {},
-        permissions: fullAnalysisRes.permission_data || {},
-        hidden: fullAnalysisRes.hidden_clauses_data || {},
-      });
-    } catch (e) {
-      setError(
-        e.message || "Analysis failed. Check that the backend is running.",
-      );
-    } finally {
-      setLoading(false);
+        setData({
+          summary: fullAnalysisRes.summary || "",
+          risks: fullAnalysisRes.risk_data || {},
+          permissions: fullAnalysisRes.permission_data || {},
+          hidden: fullAnalysisRes.hidden_clauses_data || {},
+        });
+      } catch (e) {
+        let msg = e.message || "Analysis failed. Check that the backend is running.";
+        if (msg.includes("403")) {
+          msg = "Target URL returned an error: 403. This website is protected by bot-detection (like Cloudflare) which blocks automated scrapers. Please switch to the 'Paste Policy Text' mode above and copy/paste the policy text directly to analyze it instantly!";
+        }
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      if (!policyText.trim()) return;
+      if (policyText.trim().length < 100) {
+        setError("Please enter a longer policy text (at least 100 characters) to perform a high-quality analysis.");
+        return;
+      }
+      setLoading(true);
+      try {
+        // Skip fetching HTML. Pass raw text directly as html, set placeholder URL.
+        const fullAnalysisRes = await fetchApi("/full-analysis", { 
+          url: "Pasted Text Analysis", 
+          html: policyText 
+        });
+
+        setData({
+          summary: fullAnalysisRes.summary || "",
+          risks: fullAnalysisRes.risk_data || {},
+          permissions: fullAnalysisRes.permission_data || {},
+          hidden: fullAnalysisRes.hidden_clauses_data || {},
+        });
+      } catch (e) {
+        setError(e.message || "Analysis failed. Check that the RAG backend is running.");
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -107,27 +138,62 @@ export default function Dashboard() {
     <div className="ps-dashboard">
       <div className="ps-dashboard-header">
         <h2>🛡️ Policy Analysis Dashboard</h2>
-        <p>Enter a URL to analyze its privacy policy</p>
+        <p>Choose an analysis mode to understand your privacy policy</p>
       </div>
 
-      {/* URL Input */}
-      <div className="ps-url-input-container">
-        <input
-          className="ps-url-input"
-          type="text"
-          placeholder="https://example.com/privacy-policy"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleAnalyze()}
-        />
+      {/* Input Mode Toggle */}
+      <div className="ps-input-toggle">
         <button
-          className="ps-analyze-btn"
-          onClick={handleAnalyze}
-          disabled={loading || !url.trim()}
+          className={`ps-toggle-btn ${inputMode === "url" ? "active" : ""}`}
+          onClick={() => { setInputMode("url"); setError(""); }}
         >
-          {loading ? <span className="ps-spinner"></span> : "🔍 Analyze"}
+          🔗 Analyze URL
+        </button>
+        <button
+          className={`ps-toggle-btn ${inputMode === "text" ? "active" : ""}`}
+          onClick={() => { setInputMode("text"); setError(""); }}
+        >
+          📝 Paste Policy Text
         </button>
       </div>
+
+      {/* Input Fields based on Input Mode */}
+      {inputMode === "url" ? (
+        <div className="ps-url-input-container">
+          <input
+            className="ps-url-input"
+            type="text"
+            placeholder="https://example.com/privacy-policy"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleAnalyze()}
+          />
+          <button
+            className="ps-analyze-btn"
+            onClick={handleAnalyze}
+            disabled={loading || !url.trim()}
+          >
+            {loading ? <span className="ps-spinner"></span> : "🔍 Analyze"}
+          </button>
+        </div>
+      ) : (
+        <div className="ps-text-input-container">
+          <textarea
+            className="ps-policy-textarea"
+            placeholder="Copy and paste the privacy policy text here..."
+            value={policyText}
+            onChange={(e) => setPolicyText(e.target.value)}
+          />
+          <button
+            className="ps-analyze-btn"
+            style={{ width: "100%", padding: "14px", marginTop: "4px" }}
+            onClick={handleAnalyze}
+            disabled={loading || !policyText.trim()}
+          >
+            {loading ? <span className="ps-spinner"></span> : "🔍 Analyze Pasted Text"}
+          </button>
+        </div>
+      )}
 
       {error && (
         <div

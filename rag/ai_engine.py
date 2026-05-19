@@ -4,40 +4,20 @@ from typing import List, Tuple
 
 # HTML & Text Processing
 from bs4 import BeautifulSoup
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-# AI & Embeddings
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
-import os
-from dotenv import load_dotenv # <--- Add this
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 load_dotenv()
+
 # --- CONFIGURATION ---
 STORAGE_DIR = "storage"
 os.makedirs(STORAGE_DIR, exist_ok=True) # Create folder if not exists
 
-
-
 llm = ChatOpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.getenv("GROQ_API_KEY"),
-    model="openai/gpt-oss-120b",
+    model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
     temperature=0.0,
 )
-# Initialize Embeddings (Runs locally, free)
-# We use a lightweight model for speed
-# Old general-purpose model
-# New lightweight model for high-speed analysis
-embedding_model = None
-
-def get_embedding_model():
-    global embedding_model
-    if embedding_model is None:
-        print("⏳ Loading AI Embedding Model (First time may take a minute to download)...")
-        from langchain_community.embeddings import HuggingFaceEmbeddings
-        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", model_kwargs={'device': 'cpu'})
-        print("✅ AI Model Loaded!")
-    return embedding_model
 
 def clean_html(raw_html: str) -> str:
     """
@@ -56,40 +36,24 @@ def clean_html(raw_html: str) -> str:
     return "\n".join(clean_lines)
 
 
-def process_policy(html_content: str, url_hash: str,existing_summary: str = None) -> Tuple[str, str]:
+def process_policy(html_content: str, url_hash: str, existing_summary: str = None) -> Tuple[str, str, str]:
     """
     Main Pipeline:
     1. Cleans HTML.
-    2. Creates Vector DB (FAISS) and saves to disk.
-    3. Generates a Summary using Gemini.
-    Returns: (summary_text, vector_db_path)
+    2. Returns summary and cleaned text.
+    Returns: (summary_text, empty_string, clean_text)
     """
     # 1. Clean Text
     clean_text = clean_html(html_content)
     if len(clean_text) < 100:
-        return "Error: Content too short to analyze.", ""
+        return "Error: Content too short to analyze.", "", ""
 
-    # 2. Chunking (Split text into manageble pieces)
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=400
-    )
-    docs = text_splitter.create_documents([clean_text])
-
-    # 3. Vector Database (FAISS)
-    # This creates the mathematical index of the policy
-    vector_db = FAISS.from_documents(docs, get_embedding_model())
-    
-    # Save to Disk
-    # FAISS saves a folder, so we name it "storage/hash_index"
-    save_path = os.path.join(STORAGE_DIR, f"{url_hash}_index")
-    vector_db.save_local(save_path)
     if existing_summary:
         print(f"Skipping LLM summary generation for {url_hash} (Using cached summary)")
-        return existing_summary, save_path
+        return existing_summary, "", clean_text
 
-    # 4. Generate Summary (Using Gemini)
-    # We send the first 15,000 chars to Gemini (Flash handles big context easily)
+    # 2. Generate Summary (Using Groq)
+    # We send the first 15,000 chars to Groq (Flash handles big context easily)
     context_preview = clean_text[:15000] 
     
     prompt = f"""
@@ -112,59 +76,23 @@ def process_policy(html_content: str, url_hash: str,existing_summary: str = None
     except Exception as e:
         summary = f"AI Error: {str(e)}"
 
-    return summary, save_path
+    return summary, "", clean_text
 
 
-def chat_with_policy(query: str, vector_path: str) -> str:
+def chat_with_policy(query: str, policy_text: str) -> str:
     """
-    Loads the specific FAISS index for this site and answers the user's question.
+    Directly answers user's questions about the policy using the provided policy_text context.
     """
-    if not os.path.exists(vector_path):
+    if not policy_text:
         return "Error: Policy data not found. Please refresh the analysis."
 
-    expansion_prompt = f"""
-    You are an AI assistant optimizing queries for a Privacy Policy search.
-    The user asked: "{query}"
+    print(f"🔎 Answering chat question directly using context window...")
     
-    Generate 2 variations of this question to improve retrieval from a legal document:
-    1. A keyword-heavy version (using terms like 'legal basis', 'consent', 'third-party', 'opt-out').
-    2. A version asking about specific mechanisms or tools mentioned in the policy.
+    # We take the first 30,000 characters of the policy. 
+    # That is ~6,000 words, which is more than enough for a standard policy,
+    # and leaves plenty of space in Groq's context window.
+    context = policy_text[:30000]
     
-    Output ONLY the 2 variations separated by a new line. Do not number them.
-    """
-    
-    try:
-        # Generate the better queries
-        expanded_response = llm.invoke(expansion_prompt)
-        variations = expanded_response.content.strip().split('\n')
-        # Add the original query to the list
-        search_queries = [query] + [v.strip() for v in variations if v.strip()]
-    except:
-        # If expansion fails, just use original
-        search_queries = [query]
-
-    print(f"🔎 Searching with queries: {search_queries}")
-    
-    
-    # 1. Load the Vector DB from disk
-    # We must allow dangerous deserialization because we trust our own files
-    vector_db = FAISS.load_local(vector_path, get_embedding_model(), allow_dangerous_deserialization=True)
-
-    # 2. Search for relevant chunks (RAG)
-    all_docs = []
-    for q in search_queries:
-        # Fetch top 4 chunks for EACH variation
-        docs = vector_db.similarity_search(q, k=4)
-        all_docs.extend(docs)
-
-    # Remove duplicates (because different queries might find the same chunk)
-    unique_docs = {}
-    for doc in all_docs:
-        unique_docs[doc.page_content] = doc # specific content is the key
-    
-    # Combine the unique chunks
-    final_docs = list(unique_docs.values())
-    context = "\n\n".join([d.page_content for d in final_docs])
     prompt = f"""
 You are answering questions using a privacy policy document.
 
@@ -184,7 +112,8 @@ Question:
 
 Answer:
 """
-
-    
-    response = llm.invoke(prompt)
-    return response.content
+    try:
+        response = llm.invoke(prompt)
+        return response.content
+    except Exception as e:
+        return f"AI Error: {str(e)}"

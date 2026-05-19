@@ -9,8 +9,12 @@ app.use(cors());
 // express.json() removed because it breaks http-proxy-middleware for POST requests
 
 let proxyTarget = process.env.RAG_API_URL || "http://localhost:8000";
-if (!proxyTarget.startsWith("http")) {
-  proxyTarget = "https://" + proxyTarget;
+if (!proxyTarget.startsWith("http://") && !proxyTarget.startsWith("https://")) {
+  if (!proxyTarget.includes(":")) {
+    proxyTarget = "http://" + proxyTarget + ":8000";
+  } else {
+    proxyTarget = "http://" + proxyTarget;
+  }
 }
 
 // RAG Service Proxy (Python FastAPI runs on port 8000)

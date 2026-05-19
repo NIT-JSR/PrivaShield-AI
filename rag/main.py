@@ -51,15 +51,15 @@ async def home():
 async def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db)):
     """
     Receives HTML.
-    1. Checks if we already have a scan for this URL in MySQL.
+    1. Checks if we already have a scan for this URL in Database.
     2. If YES: Returns the cached summary.
-    3. If NO: Runs AI, saves vector DB to disk, saves record to MySQL.
+    3. If NO: Runs AI, saves clean text to DB.
     """
-    # Check Cache (MySQL)
+    # Check Cache (DB)
     existing_scan = database.get_scan_by_url(db, request.url)
     
-    # If scan exists AND the file is actually on disk (handling server restarts)
-    if existing_scan and existing_scan.vector_index_path and os.path.exists(existing_scan.vector_index_path):
+    # If scan exists and we have the clean policy text
+    if existing_scan and existing_scan.policy_text:
         return AnalyzeResponse(
             status="cached",
             summary=existing_scan.risk_summary
@@ -69,23 +69,22 @@ async def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db))
     # 1. Create unique hash for filenames
     url_hash = hashlib.md5(request.url.encode()).hexdigest()
     saved_summary = existing_scan.risk_summary if existing_scan else None
-    # 2. Run AI Engine (Clean -> Embed -> Save Index)
+    # 2. Run AI Engine (Clean -> Summarize)
     try:
-         summary,vector_path = ai_engine.process_policy(request.html, url_hash,existing_summary=saved_summary)
+         summary, _, policy_text = ai_engine.process_policy(request.html, url_hash, existing_summary=saved_summary)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI Processing Failed: {str(e)}")
 
-    if not vector_path:
+    if not policy_text:
         raise HTTPException(status_code=400, detail="Could not extract text from HTML.")
 
-    # 3. Save Metadata to MySQL
-    # If entry existed but file was missing (server restart), update it. Otherwise create new.
+    # 3. Save Metadata to DB
     if existing_scan:
         existing_scan.risk_summary = summary
-        existing_scan.vector_index_path = vector_path
+        existing_scan.policy_text = policy_text
         db.commit()
     else:
-        database.create_scan(db, request.url, summary, vector_path)
+        database.create_scan(db, request.url, summary, "", policy_text)
 
     return AnalyzeResponse(
         status="processed_new",
@@ -96,21 +95,16 @@ async def analyze_policy(request: AnalyzeRequest, db: Session = Depends(get_db))
 async def chat_policy(request: ChatRequest, db: Session = Depends(get_db)):
     """
     User asks a question about a specific URL.
-    We load the FAISS index from disk and answer.
+    We load the persistent policy text from Database and answer directly using Groq's context window.
     """
     # 1. Find the scan record
     scan = database.get_scan_by_url(db, request.url)
     
-    if not scan:
+    if not scan or not scan.policy_text:
         raise HTTPException(status_code=404, detail="Policy not found. Please analyze the site first.")
 
-    # 2. Check if file still exists (Render ephemeral storage check)
-    if not os.path.exists(scan.vector_index_path):
-        # Optional: You could trigger a re-analysis here if you saved the HTML
-        raise HTTPException(status_code=410, detail="Session expired (Server Restart). Please refresh the page to re-analyze.")
-
-    # 3. Generate Answer
-    answer = ai_engine.chat_with_policy(request.question, scan.vector_index_path)
+    # 2. Generate Answer
+    answer = ai_engine.chat_with_policy(request.question, scan.policy_text)
     
     return ChatResponse(answer=answer)
 

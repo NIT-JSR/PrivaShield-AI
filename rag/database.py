@@ -3,6 +3,10 @@ import hashlib
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.sql import func
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # --- 1. CONFIGURATION ---
 # Use DATABASE_URL from environment (e.g. Render MySQL), otherwise fallback to local SQLite
@@ -36,16 +40,18 @@ class ProcessedSite(Base):
     url = Column(Text, nullable=False)
     risk_summary = Column(Text, nullable=True) # Matches database_lite schema
     vector_index_path = Column(String(255), nullable=True)
+    policy_text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # --- 3. DATABASE LOGIC ---
-def create_scan(db: Session, url: str, summary: str, index_path: str):
+def create_scan(db: Session, url: str, summary: str, index_path: str, policy_text: str = None):
     url_hash = hashlib.md5(url.encode()).hexdigest()
     db_scan = ProcessedSite(
         url_hash=url_hash,
         url=url,
         risk_summary=summary,
-        vector_index_path=index_path
+        vector_index_path=index_path,
+        policy_text=policy_text
     )
     db.add(db_scan)
     db.commit()
