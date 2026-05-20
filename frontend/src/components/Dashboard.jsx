@@ -1,9 +1,31 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const API_BASE =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? "/api/rag"
     : "https://privashield-backend.onrender.com/api/rag";
+
+const IS_PROD =
+  window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+
+// Detects cold-start / gateway errors from Render free-tier
+function isColdStartError(msg) {
+  return (
+    msg.includes("502") ||
+    msg.includes("504") ||
+    msg.includes("RAG Service Unavailable") ||
+    msg.toLowerCase().includes("fetch")
+  );
+}
+
+// Sleeps for `ms` milliseconds, calling onTick(remainingSeconds) every second
+async function sleepWithCountdown(ms, onTick) {
+  const steps = Math.ceil(ms / 1000);
+  for (let i = steps; i > 0; i--) {
+    onTick(i);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
 
 const PERM_ICONS = {
   Camera: "📷",
@@ -53,22 +75,6 @@ function getScoreLevel(score) {
   return "critical";
 }
 
-const BACKEND_HEALTH = "https://privashield-backend.onrender.com/health";
-const RAG_HEALTH = "https://privashield-rag.onrender.com/";
-
-// Warmup: pings a URL until it responds OK or times out after maxMs
-async function warmupService(url, maxMs = 60000) {
-  const start = Date.now();
-  while (Date.now() - start < maxMs) {
-    try {
-      const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(8000) });
-      if (res.ok) return true;
-    } catch (_) { /* still sleeping, retry */ }
-    await new Promise((r) => setTimeout(r, 3000));
-  }
-  return false;
-}
-
 export default function Dashboard() {
   const [url, setUrl] = useState("");
   const [inputMode, setInputMode] = useState("url"); // "url" or "text"
@@ -78,92 +84,8 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("summary");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-
-  // Only warm up on production (Render), not locally
-  const isProduction = window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
-
-  async function warmupServices() {
-    if (!isProduction) return true; // skip warmup locally
-    setLoadingMsg("⏳ Waking up services (first request may take ~30s on free tier)...");
-    const [backendOk, ragOk] = await Promise.all([
-      warmupService(BACKEND_HEALTH),
-      warmupService(RAG_HEALTH),
-    ]);
-    if (!backendOk || !ragOk) {
-      throw new Error("Services could not wake up in time. Please try again.");
-    }
-    setLoadingMsg("🔍 Services ready! Running analysis...");
-    return true;
-  }
-
-  async function handleAnalyze() {
-    setError("");
-    setData(null);
-    setLoadingMsg("");
-
-    if (inputMode === "url") {
-      if (!url.trim()) return;
-      setLoading(true);
-      try {
-        // 0. Wake up sleeping Render free-tier services first
-        await warmupServices();
-
-        // 1. Ask the backend to fetch the HTML to avoid CORS
-        setLoadingMsg("📡 Fetching page content...");
-        const { html } = await fetchApi("/fetch-html", { url });
-
-        // 2. Run full analysis using the HTML we got from our backend
-        setLoadingMsg("🤖 Running AI analysis (parallel)...");
-        const fullAnalysisRes = await fetchApi("/full-analysis", { url, html });
-
-        setData({
-          summary: fullAnalysisRes.summary || "",
-          risks: fullAnalysisRes.risk_data || {},
-          permissions: fullAnalysisRes.permission_data || {},
-          hidden: fullAnalysisRes.hidden_clauses_data || {},
-        });
-      } catch (e) {
-        let msg = e.message || "Analysis failed. Check that the backend is running.";
-        if (msg.includes("403")) {
-          msg = "Target URL returned an error: 403. This website is protected by bot-detection (like Cloudflare) which blocks automated scrapers. Please switch to the 'Paste Policy Text' mode above and copy/paste the policy text directly to analyze it instantly!";
-        }
-        setError(msg);
-      } finally {
-        setLoading(false);
-        setLoadingMsg("");
-      }
-    } else {
-      if (!policyText.trim()) return;
-      if (policyText.trim().length < 100) {
-        setError("Please enter a longer policy text (at least 100 characters) to perform a high-quality analysis.");
-        return;
-      }
-      setLoading(true);
-      try {
-        // 0. Wake up sleeping Render free-tier services first
-        await warmupServices();
-
-        // Run full analysis with pasted text
-        setLoadingMsg("🤖 Running AI analysis (parallel)...");
-        const fullAnalysisRes = await fetchApi("/full-analysis", {
-          url: "Pasted Text Analysis",
-          html: policyText,
-        });
-
-        setData({
-          summary: fullAnalysisRes.summary || "",
-          risks: fullAnalysisRes.risk_data || {},
-          permissions: fullAnalysisRes.permission_data || {},
-          hidden: fullAnalysisRes.hidden_clauses_data || {},
-        });
-      } catch (e) {
-        setError(e.message || "Analysis failed. Check that the RAG backend is running.");
-      } finally {
-        setLoading(false);
-        setLoadingMsg("");
-      }
-    }
-  }
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 3;
 
   async function fetchApi(endpoint, body) {
     const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -173,9 +95,85 @@ export default function Dashboard() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `API Error ${res.status}`);
+      throw new Error(err.detail || err.error || `API Error ${res.status}`);
     }
     return res.json();
+  }
+
+  async function runAnalysis(mode, urlVal, htmlVal) {
+    if (mode === "url") {
+      setLoadingMsg("📡 Fetching page content...");
+      const { html } = await fetchApi("/fetch-html", { url: urlVal });
+      setLoadingMsg("🤖 Running AI analysis (may take 30–60s)...");
+      return fetchApi("/full-analysis", { url: urlVal, html });
+    }
+    setLoadingMsg("🤖 Running AI analysis (may take 30–60s)...");
+    return fetchApi("/full-analysis", { url: "Pasted Text Analysis", html: htmlVal });
+  }
+
+  async function handleAnalyze() {
+    setError("");
+    setData(null);
+    setLoadingMsg("");
+    retryCount.current = 0;
+
+    if (inputMode === "url") {
+      if (!url.trim()) return;
+    } else {
+      if (!policyText.trim()) return;
+      if (policyText.trim().length < 100) {
+        setError("Please enter a longer policy text (at least 100 characters) to perform a high-quality analysis.");
+        return;
+      }
+    }
+
+    setLoading(true);
+    if (IS_PROD) {
+      setLoadingMsg("⏳ Starting up AI services (may take ~30–60s on first use)...");
+    } else {
+      setLoadingMsg("🤖 Running analysis...");
+    }
+
+    while (retryCount.current <= MAX_RETRIES) {
+      try {
+        const result = await runAnalysis(inputMode, url, policyText);
+        setData({
+          summary: result.summary || "",
+          risks: result.risk_data || {},
+          permissions: result.permission_data || {},
+          hidden: result.hidden_clauses_data || {},
+        });
+        setLoading(false);
+        setLoadingMsg("");
+        return; // success — exit
+      } catch (e) {
+        const msg = e.message || "";
+        const isRetryable = IS_PROD && isColdStartError(msg) && retryCount.current < MAX_RETRIES;
+
+        if (isRetryable) {
+          retryCount.current += 1;
+          await sleepWithCountdown(20000, (secs) => {
+            setLoadingMsg(
+              `⏳ Services are warming up... retrying in ${secs}s (attempt ${retryCount.current}/${MAX_RETRIES})`
+            );
+          });
+          setLoadingMsg("🔄 Retrying...");
+        } else {
+          let finalMsg = msg || "Analysis failed.";
+          if (msg.includes("403")) {
+            finalMsg =
+              "This site blocks automated access (403 Forbidden). Please switch to 'Paste Policy Text' mode and paste the policy text directly.";
+          } else if (isColdStartError(msg)) {
+            finalMsg =
+              "The AI services are still starting up after a period of inactivity. Please wait 30 seconds and click Analyze again.";
+          }
+          setError(finalMsg);
+          setLoading(false);
+          setLoadingMsg("");
+          return;
+        }
+      }
+    }
   }
 
   const score = data?.risks?.overall_risk_score || 0;
