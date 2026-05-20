@@ -79,6 +79,45 @@ def process_policy(html_content: str, url_hash: str, existing_summary: str = Non
     return summary, "", clean_text
 
 
+async def process_policy_async(html_content: str, url_hash: str, existing_summary: str = None) -> Tuple[str, str, str]:
+    """
+    Asynchronous version of the process policy pipeline for high-speed concurrent execution.
+    """
+    # 1. Clean Text
+    clean_text = clean_html(html_content)
+    if len(clean_text) < 100:
+        return "Error: Content too short to analyze.", "", ""
+
+    if existing_summary:
+        print(f"Skipping LLM summary generation for {url_hash} (Using cached summary)")
+        return existing_summary, "", clean_text
+
+    # 2. Generate Summary (Using Groq API asynchronously)
+    context_preview = clean_text[:15000] 
+    
+    prompt = f"""
+    You are a Privacy Expert. Analyze the following privacy policy text.
+    Identify the most critical risks for the user.
+    
+    Output Format:
+    - **Data Collected:** (List key items)
+    - **Third Party Sharing:** (Who gets the data?)
+    - **User Rights:** (Can they delete data?)
+    - **Risk Score:** (1-10, give a number based on invasiveness)
+    
+    Policy Text:
+    {context_preview}
+    """
+    
+    try:
+        response = await llm.ainvoke(prompt)
+        summary = response.content
+    except Exception as e:
+        summary = f"AI Error: {str(e)}"
+
+    return summary, "", clean_text
+
+
 def chat_with_policy(query: str, policy_text: str) -> str:
     """
     Directly answers user's questions about the policy using the provided policy_text context.
@@ -114,6 +153,42 @@ Answer:
 """
     try:
         response = llm.invoke(prompt)
+        return response.content
+    except Exception as e:
+        return f"AI Error: {str(e)}"
+
+
+async def chat_with_policy_async(query: str, policy_text: str) -> str:
+    """
+    Directly answers user's questions about the policy asynchronously.
+    """
+    if not policy_text:
+        return "Error: Policy data not found. Please refresh the analysis."
+
+    print(f"🔎 Answering chat question asynchronously using context window...")
+    context = policy_text[:30000]
+    
+    prompt = f"""
+You are answering questions using a privacy policy document.
+
+Instructions:
+- Answer ONLY using the information found in the context.
+- Do NOT add outside knowledge.
+- Provide a concise, structured answer.
+- If multiple parts of the answer exist, summarize them clearly.
+- If the answer is not found, say:
+  "Hehe, I cannot find that information in the policy."
+
+Context:
+{context}
+
+Question:
+{query}
+
+Answer:
+"""
+    try:
+        response = await llm.ainvoke(prompt)
         return response.content
     except Exception as e:
         return f"AI Error: {str(e)}"
