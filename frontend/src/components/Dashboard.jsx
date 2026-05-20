@@ -1,6 +1,9 @@
 import { useState } from "react";
 
-const API_BASE = "/api/rag";
+const API_BASE =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "/api/rag"
+    : "https://privashield-backend.onrender.com/api/rag";
 
 const PERM_ICONS = {
   Camera: "📷",
