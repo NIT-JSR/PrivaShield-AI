@@ -53,27 +53,67 @@ function getScoreLevel(score) {
   return "critical";
 }
 
+const BACKEND_HEALTH = "https://privashield-backend.onrender.com/health";
+const RAG_HEALTH = "https://privashield-rag.onrender.com/";
+
+// Warmup: pings a URL until it responds OK or times out after maxMs
+async function warmupService(url, maxMs = 60000) {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    try {
+      const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(8000) });
+      if (res.ok) return true;
+    } catch (_) { /* still sleeping, retry */ }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  return false;
+}
+
 export default function Dashboard() {
   const [url, setUrl] = useState("");
   const [inputMode, setInputMode] = useState("url"); // "url" or "text"
   const [policyText, setPolicyText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("");
   const [activeTab, setActiveTab] = useState("summary");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
+  // Only warm up on production (Render), not locally
+  const isProduction = window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+
+  async function warmupServices() {
+    if (!isProduction) return true; // skip warmup locally
+    setLoadingMsg("⏳ Waking up services (first request may take ~30s on free tier)...");
+    const [backendOk, ragOk] = await Promise.all([
+      warmupService(BACKEND_HEALTH),
+      warmupService(RAG_HEALTH),
+    ]);
+    if (!backendOk || !ragOk) {
+      throw new Error("Services could not wake up in time. Please try again.");
+    }
+    setLoadingMsg("🔍 Services ready! Running analysis...");
+    return true;
+  }
+
   async function handleAnalyze() {
     setError("");
     setData(null);
+    setLoadingMsg("");
 
     if (inputMode === "url") {
       if (!url.trim()) return;
       setLoading(true);
       try {
+        // 0. Wake up sleeping Render free-tier services first
+        await warmupServices();
+
         // 1. Ask the backend to fetch the HTML to avoid CORS
-        const { html } = await fetchApi("/fetch-html", { url }); 
-        
+        setLoadingMsg("📡 Fetching page content...");
+        const { html } = await fetchApi("/fetch-html", { url });
+
         // 2. Run full analysis using the HTML we got from our backend
+        setLoadingMsg("🤖 Running AI analysis (parallel)...");
         const fullAnalysisRes = await fetchApi("/full-analysis", { url, html });
 
         setData({
@@ -90,6 +130,7 @@ export default function Dashboard() {
         setError(msg);
       } finally {
         setLoading(false);
+        setLoadingMsg("");
       }
     } else {
       if (!policyText.trim()) return;
@@ -99,10 +140,14 @@ export default function Dashboard() {
       }
       setLoading(true);
       try {
-        // Skip fetching HTML. Pass raw text directly as html, set placeholder URL.
-        const fullAnalysisRes = await fetchApi("/full-analysis", { 
-          url: "Pasted Text Analysis", 
-          html: policyText 
+        // 0. Wake up sleeping Render free-tier services first
+        await warmupServices();
+
+        // Run full analysis with pasted text
+        setLoadingMsg("🤖 Running AI analysis (parallel)...");
+        const fullAnalysisRes = await fetchApi("/full-analysis", {
+          url: "Pasted Text Analysis",
+          html: policyText,
         });
 
         setData({
@@ -115,6 +160,7 @@ export default function Dashboard() {
         setError(e.message || "Analysis failed. Check that the RAG backend is running.");
       } finally {
         setLoading(false);
+        setLoadingMsg("");
       }
     }
   }
@@ -195,6 +241,23 @@ export default function Dashboard() {
           >
             {loading ? <span className="ps-spinner"></span> : "🔍 Analyze Pasted Text"}
           </button>
+        </div>
+      )}
+
+      {loading && loadingMsg && (
+        <div
+          style={{
+            textAlign: "center",
+            color: "#a78bfa",
+            padding: "16px 20px",
+            background: "rgba(139,92,246,0.08)",
+            borderRadius: "12px",
+            marginBottom: "16px",
+            fontSize: "14px",
+            border: "1px solid rgba(139,92,246,0.2)",
+          }}
+        >
+          {loadingMsg}
         </div>
       )}
 

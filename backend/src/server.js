@@ -23,12 +23,14 @@ app.use(
   createProxyMiddleware({
     target: proxyTarget, // Python Service URL Configurable
     changeOrigin: true,
+    proxyTimeout: 120000, // 120s – allows for Render free-tier cold starts + LLM analysis time
+    timeout: 120000,
     pathRewrite: {
       "^/api/rag": "", // Strip /api/rag prefix when forwarding to Python
     },
     onError: (err, req, res) => {
-      console.error("Proxy Error:", err);
-      res.status(502).json({ error: "RAG Service Unavailable" });
+      console.error("Proxy Error:", err.message);
+      res.status(502).json({ error: "RAG Service Unavailable", detail: err.message });
     },
   })
 );
