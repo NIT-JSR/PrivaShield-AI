@@ -2,8 +2,8 @@ import { useState, useRef } from "react";
 
 const API_BASE =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "/api/rag"
-    : "https://privashield-backend.onrender.com/api/rag";
+    ? "/api/rag"                              // local: use Vite proxy → backend → RAG
+    : "https://privashield-rag.onrender.com"; // prod: call RAG directly (CORS is open)
 
 const IS_PROD =
   window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
