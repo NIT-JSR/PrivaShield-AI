@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 
-// 🔧 IMPORTANT: Replace YOUR_HF_USERNAME with your Hugging Face username
-const HF_RAG_URL = "https://YOUR_HF_USERNAME-privashield-rag.hf.space";
+// 🔧 Hugging Face Spaces URL
+const HF_RAG_URL = "https://mehtaprince-rag.hf.space";
 
 const API_BASE =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
