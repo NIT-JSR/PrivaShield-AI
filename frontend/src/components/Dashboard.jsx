@@ -1,9 +1,13 @@
 import { useState, useRef } from "react";
 
+// 🔧 IMPORTANT: Replace YOUR_HF_USERNAME with your Hugging Face username
+// Your HF Spaces URL format: https://YOUR_HF_USERNAME-privashield-rag.hf.space
+const HF_RAG_URL = "https://YOUR_HF_USERNAME-privashield-rag.hf.space";
+
 const API_BASE =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "/api/rag"                              // local: use Vite proxy → backend → RAG
-    : "https://privashield-rag.onrender.com"; // prod: call RAG directly (CORS is open)
+    ? "/api/rag"   // local: Vite proxy → backend → RAG
+    : HF_RAG_URL;  // production: HF Spaces (always-on, no cold starts)
 
 const IS_PROD =
   window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";

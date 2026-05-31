@@ -7,12 +7,7 @@ import os
 import json
 import re
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-
-# Use the same LLM instance configuration as ai_engine
 from langchain_openai import ChatOpenAI
-import os
 
 
 load_dotenv()
