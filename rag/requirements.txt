@@ -1,7 +1,6 @@
 # Core web framework
 fastapi==0.115.0
 uvicorn==0.30.6
-starlette==0.41.2
 python-multipart==0.0.9
 
 # HTTP client (for fetch-html endpoint)
