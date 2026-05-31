@@ -14,7 +14,7 @@ os.makedirs(STORAGE_DIR, exist_ok=True) # Create folder if not exists
 
 llm = ChatOpenAI(
     base_url="https://api.groq.com/openai/v1",
-    api_key=os.getenv("GROQ_API_KEY"),
+    api_key=os.getenv("GROQ_API_KEY", "NOT_SET"),
     model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
     temperature=0.0,
 )
