@@ -28,7 +28,7 @@ services:
     fromService:
       name: privashield-backend
       type: web
-      property: url
+      property: host
   runtime: static
   staticPublishPath: dist
 

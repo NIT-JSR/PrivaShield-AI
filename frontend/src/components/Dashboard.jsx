@@ -1,10 +1,15 @@
 import { useState, useRef } from "react";
 
-const API_BASE = import.meta.env.VITE_BACKEND_URL
-  ? (import.meta.env.VITE_BACKEND_URL.endsWith('/api/rag') 
-      ? import.meta.env.VITE_BACKEND_URL 
-      : `${import.meta.env.VITE_BACKEND_URL}/api/rag`)
-  : "/api/rag";
+let backendUrl = import.meta.env.VITE_BACKEND_URL;
+if (backendUrl) {
+  if (!backendUrl.startsWith("http://") && !backendUrl.startsWith("https://")) {
+    backendUrl = "https://" + backendUrl;
+  }
+  if (!backendUrl.endsWith("/api/rag")) {
+    backendUrl = backendUrl + "/api/rag";
+  }
+}
+const API_BASE = backendUrl || "/api/rag";
 
 const IS_PROD =
   window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
