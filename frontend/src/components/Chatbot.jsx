@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 
-// 🔧 Hugging Face Spaces URL
-const HF_RAG_URL = "https://mehtaprince-rag.hf.space";
-
-const API_BASE =
-  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "/api/rag"   // local: Vite proxy → backend → RAG
-    : HF_RAG_URL;  // production: HF Spaces (always-on)
+const API_BASE = import.meta.env.VITE_BACKEND_URL
+  ? (import.meta.env.VITE_BACKEND_URL.endsWith('/api/rag') 
+      ? import.meta.env.VITE_BACKEND_URL 
+      : `${import.meta.env.VITE_BACKEND_URL}/api/rag`)
+  : "/api/rag";
 
 function escapeHtml(text) {
     if (!text) return '';

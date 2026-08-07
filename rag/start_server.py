@@ -37,5 +37,6 @@ if __name__ == "__main__":
     print()
     print("=" * 60)
     
-    port = int(os.environ.get("PORT", 8000))
+    default_port = 7860 if "SPACE_ID" in os.environ else 8000
+    port = int(os.environ.get("PORT", default_port))
     uvicorn.run(app, host="0.0.0.0", port=port)
