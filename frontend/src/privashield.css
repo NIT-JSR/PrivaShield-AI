@@ -1068,6 +1068,24 @@
 }
 
 /* --- DARK THEME OVERRIDES --- */
+html.dark :root {
+    --bg-secondary: rgba(255, 255, 255, 0.03) !important;
+    --bg-tertiary: rgba(255, 255, 255, 0.05) !important;
+    --bg-card: rgba(255, 255, 255, 0.03) !important;
+    --bg-glass: rgba(16, 18, 33, 0.4) !important;
+    --border-glass: rgba(255, 255, 255, 0.05) !important;
+    --border-glow: rgba(139, 92, 246, 0.1) !important;
+
+    --accent: #d0bcff !important;
+    --accent-light: #e9ddff !important;
+    --accent-dark: #a078ff !important;
+    --accent-glow: rgba(208, 188, 255, 0.15) !important;
+
+    --text-primary: #e1e1f7 !important;
+    --text-secondary: #cbc3d7 !important;
+    --text-muted: #958ea0 !important;
+}
+
 html.dark .ps-app {
     background: #02040F !important;
     background-image: radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
@@ -1104,4 +1122,31 @@ html.dark .ps-nav-cta:hover {
     background: linear-gradient(135deg, #7c3aed, #5b21b6) !important;
     box-shadow: 0 4px 15px rgba(109, 59, 215, 0.4) !important;
     transform: scale(1.02) !important;
+}
+
+/* Explicit card readability overrides in dark mode */
+html.dark .ps-result-card {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    color: #e1e1f7 !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+html.dark .ps-result-card h3 {
+    color: #ffffff !important;
+}
+
+html.dark .ps-risk-item {
+    background: rgba(255, 255, 255, 0.01) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-left: 4px solid var(--yellow) !important;
+    color: #cbc3d7 !important;
+}
+
+html.dark .ps-risk-item h5 {
+    color: #ffffff !important;
+}
+
+html.dark .ps-gauge .bg {
+    stroke: rgba(255, 255, 255, 0.03) !important;
 }

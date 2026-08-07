@@ -122,19 +122,39 @@ async def get_hidden_clauses(request: PolicyRequest):
 @enhanced_router.post("/full-analysis", response_model=FullAnalysisResponse)
 async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db)):
     """
-    Complete analysis pipeline optimized for concurrent parallel execution:
-    1. Cleans HTML
-    2. Runs summary, risk analysis, permission mapping, and hidden clause detection
-       simultaneously in parallel to stay under Render's 30s timeout limit.
-    Returns everything in one response.
+    Complete analysis pipeline optimized for concurrent parallel execution with caching:
+    1. Check if we have a cached JSON analysis file in storage/analysis_cache/.
+    2. If yes, load and return it instantly (~1ms).
+    3. If no, clean HTML, run parallel AI analysis, save cache file, and return.
     """
     import asyncio
+    import json
+    
+    url_hash = hashlib.md5(request.url.encode()).hexdigest()
+    cache_dir = "storage/analysis_cache"
+    cache_path = os.path.join(cache_dir, f"{url_hash}.json")
+    
+    # 1. Check cache
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+            return FullAnalysisResponse(
+                status="cached",
+                url=request.url,
+                summary=cached_data.get("summary", ""),
+                risk_data=cached_data.get("risk_data", {}),
+                permission_data=cached_data.get("permission_data", {}),
+                hidden_clauses_data=cached_data.get("hidden_clauses_data", {})
+            )
+        except Exception as e:
+            # If cache file is corrupted, print warning and proceed to re-analyze
+            print(f"Error reading cache file {cache_path}: {e}")
+
     clean_text = ai_engine.clean_html(request.html)
 
     if len(clean_text) < 100:
         raise HTTPException(status_code=400, detail="Content too short to analyze.")
-
-    url_hash = hashlib.md5(request.url.encode()).hexdigest()
 
     # Define all four analysis tasks to be executed in parallel
     summary_task = ai_engine.process_policy_async(request.html, url_hash)
@@ -169,6 +189,20 @@ async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db
                 database.create_scan(db, request.url, summary, "", policy_text)
         except Exception:
             pass  # Don't fail the whole analysis if DB save fails
+
+    # Save to file cache
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_content = {
+            "summary": summary,
+            "risk_data": risk_data,
+            "permission_data": permission_data,
+            "hidden_clauses_data": hidden_data
+        }
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(cache_content, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Failed to write cache file {cache_path}: {e}")
 
     return FullAnalysisResponse(
         status="analyzed",

@@ -221,12 +221,87 @@ export default function LandingPage({ onNavigate }) {
                             <h2 className="font-headline-lg text-2xl md:text-3xl font-semibold text-white mb-xs">Platform Architecture</h2>
                             <p className="font-body-md text-base text-[#cbc3d7] max-w-2xl mx-auto">A look under the hood at how our systems correlate legal text with technical reality.</p>
                         </div>
-                        <div className="glass-panel rounded-xl p-4 md:p-md shadow-lg overflow-hidden border-primary/20">
-                            <img 
-                                alt="System Architecture Flowchart" 
-                                className="w-full h-auto rounded-lg mix-blend-screen opacity-90 hover:opacity-100 transition-opacity duration-500" 
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDBysxqMGxulMpFLOGL4WMC8-lAslikx19QJVaQFAIKeE0geBlFVZMwie2YJIuyobxlFBO1QA-robdDxjCiIAD7WWMk_MoF2uvkyJxYVveteVx4cIJ8qUkPIqSlOOEFT48YBIs9FRMJ8cXUPCtQpDhG1SaeHYsFzULNsw74FEgWabj_WatgHMbGfQPVhfUa0Z5viC7jlbekCpXCJ5VHow0T9keCGzD6wPO0qzV5iSaByg3v8cnzmDTvSGHUgZeEF0oZU1gmaEHig"
-                            />
+                        {/* Redesigned Vector-Sharp Flowchart */}
+                        <div className="glass-panel rounded-xl p-6 md:p-10 shadow-lg border border-primary/20">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center relative">
+                                
+                                {/* Column 1: Inputs */}
+                                <div className="flex flex-col gap-6">
+                                    <div className="text-sm font-semibold uppercase tracking-wider text-secondary mb-2 text-center lg:text-left">Inputs</div>
+                                    <div className="glass-panel p-5 rounded-lg border border-white/10 flex items-center gap-4 hover:border-secondary/50 transition-all duration-300">
+                                        <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                                            <span className="material-symbols-outlined text-[28px]">policy</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <h4 className="font-semibold text-white text-base">Legal Policies</h4>
+                                            <p className="text-xs text-[#cbc3d7] mt-1">Opaque terms & service files</p>
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-5 rounded-lg border border-white/10 flex items-center gap-4 hover:border-secondary/50 transition-all duration-300">
+                                        <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                                            <span className="material-symbols-outlined text-[28px]">settings_cell</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <h4 className="font-semibold text-white text-base">Device Permissions</h4>
+                                            <p className="text-xs text-[#cbc3d7] mt-1">OS-level permission requests</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Column 2: Central Processing */}
+                                <div className="flex flex-col items-center justify-center relative py-6 lg:py-0">
+                                    {/* Arrow background indicators for large screens */}
+                                    <div className="hidden lg:block absolute -left-8 right-auto top-1/2 -translate-y-1/2 text-primary opacity-30">
+                                        <span className="material-symbols-outlined text-[48px]">trending_flat</span>
+                                    </div>
+                                    <div className="hidden lg:block absolute -right-8 left-auto top-1/2 -translate-y-1/2 text-primary opacity-30">
+                                        <span className="material-symbols-outlined text-[48px]">trending_flat</span>
+                                    </div>
+
+                                    <div className="text-sm font-semibold uppercase tracking-wider text-primary mb-2 text-center">Processing</div>
+                                    <div className="glass-panel p-6 rounded-xl border border-primary/40 bg-primary/5 flex flex-col items-center text-center max-w-sm w-full shadow-[0_0_30px_rgba(160,120,255,0.15)] hover:border-primary transition-all duration-300">
+                                        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary mb-4 shadow-[0_0_15px_rgba(160,120,255,0.3)] animate-pulse">
+                                            <span className="material-symbols-outlined text-[36px]">memory</span>
+                                        </div>
+                                        <h4 className="font-bold text-white text-lg">AI Analysis Engine</h4>
+                                        <p className="text-xs text-[#cbc3d7] mt-2">Machine Learning & Natural Language Processing (NLP)</p>
+                                        <span className="text-[10px] font-semibold text-secondary uppercase bg-secondary/10 px-2 py-0.5 rounded-full mt-4 border border-secondary/20">Groq LLM Pipeline</span>
+                                    </div>
+                                </div>
+
+                                {/* Column 3: Outputs */}
+                                <div className="flex flex-col gap-6">
+                                    <div className="text-sm font-semibold uppercase tracking-wider text-tertiary mb-2 text-center lg:text-left">Outputs</div>
+                                    <div className="glass-panel p-5 rounded-lg border border-white/10 flex items-center gap-4 hover:border-tertiary/50 transition-all duration-300">
+                                        <div className="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+                                            <span className="material-symbols-outlined text-[28px]">gpp_bad</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <h4 className="font-semibold text-white text-base">Risk Detection</h4>
+                                            <p className="text-xs text-[#cbc3d7] mt-1">Silent tracking & harvesting flags</p>
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-5 rounded-lg border border-white/10 flex items-center gap-4 hover:border-tertiary/50 transition-all duration-300">
+                                        <div className="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+                                            <span className="material-symbols-outlined text-[28px]">key</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <h4 className="font-semibold text-white text-base">Permission Mapping</h4>
+                                            <p className="text-xs text-[#cbc3d7] mt-1">Technical policy gap checks</p>
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-5 rounded-lg border border-white/10 flex items-center gap-4 hover:border-tertiary/50 transition-all duration-300">
+                                        <div className="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+                                            <span className="material-symbols-outlined text-[28px]">speed</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <h4 className="font-semibold text-white text-base">Privacy Shield Score</h4>
+                                            <p className="text-xs text-[#cbc3d7] mt-1">Calculated overall safety score</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
                         </div>
                     </div>
                 </section>
