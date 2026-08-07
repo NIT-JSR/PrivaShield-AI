@@ -1065,4 +1065,43 @@
 
 .ps-policy-textarea::placeholder {
     color: var(--text-muted);
+}
+
+/* --- DARK THEME OVERRIDES --- */
+html.dark .ps-app {
+    background: #02040F !important;
+    background-image: radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+                      radial-gradient(circle at 100% 100%, rgba(76, 215, 246, 0.05) 0%, transparent 50%) !important;
+    background-attachment: fixed !important;
+    color: #e1e1f7 !important;
+}
+
+html.dark .ps-navbar {
+    background: rgba(16, 18, 33, 0.3) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .ps-navbar-brand h1,
+html.dark .ps-navbar-brand h1 .ai,
+html.dark .ps-nav-links a {
+    color: #e1e1f7 !important;
+}
+
+html.dark .ps-nav-links a:hover {
+    color: #d0bcff !important;
+}
+
+html.dark .ps-nav-cta {
+    background: linear-gradient(135deg, #6d3bd7, #4c1d95) !important;
+    color: #ffffff !important;
+    border: none !important;
+    transition: all 0.3s ease !important;
+}
+
+html.dark .ps-nav-cta:hover {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6) !important;
+    box-shadow: 0 4px 15px rgba(109, 59, 215, 0.4) !important;
+    transform: scale(1.02) !important;
 }

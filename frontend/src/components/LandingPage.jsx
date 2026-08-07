@@ -100,39 +100,6 @@ const TEAM = [
 export default function LandingPage({ onNavigate }) {
     return (
         <div className="flex-grow flex flex-col">
-            {/* TopNavBar */}
-            <nav className="fixed top-0 w-full z-50 bg-[#101221]/30 backdrop-blur-xl border-b border-white/10 shadow-sm transition-all duration-300">
-                <div className="flex justify-between items-center px-margin-mobile md:px-margin-desktop py-4 max-w-7xl mx-auto w-full">
-                    {/* Brand */}
-                    <div className="flex items-center gap-xs">
-                        <img 
-                            alt="PrivaShield AI Logo" 
-                            className="w-8 h-8 rounded-full" 
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAzNzCHEIIVFU4fB_O2D0VU0XCv8h_Us6OkhMSakNcuEjG1jzuOVFK1YeAM3mqOn_WsvhVyAUN3uO72KkMkBAcsY6AybPCUwZpoviYl3XWSbcc6qigGNLF8c0WNYUScEmQpxebAs2PwefojLJi23CLfh_7PyuLdU_D4m1OR_1hvprizG5pONRpMTi46eRdHo2YcxRb5S-6ylAIUic3y-v7CIcvMERfnNAOes97Vpl5la0SfKXOF5YAXiieS7hHtOQwhefogJOasQ"
-                        />
-                        <span className="font-headline-lg-mobile md:font-headline-lg text-xl md:text-2xl text-primary tracking-tight font-semibold">
-                            PrivaShield AI
-                        </span>
-                    </div>
-                    {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center gap-lg">
-                        <a className="text-[#e1e1f7]/80 hover:text-primary transition-colors font-body-md text-sm hover:bg-primary/10 px-3 py-2 rounded-lg duration-300" href="#features">Features</a>
-                        <a className="text-[#e1e1f7]/80 hover:text-primary transition-colors font-body-md text-sm hover:bg-primary/10 px-3 py-2 rounded-lg duration-300" href="#how-it-works">How It Works</a>
-                        <a className="text-[#e1e1f7]/80 hover:text-primary transition-colors font-body-md text-sm hover:bg-primary/10 px-3 py-2 rounded-lg duration-300" href="#architecture">Architecture</a>
-                        <a className="text-[#e1e1f7]/80 hover:text-primary transition-colors font-body-md text-sm hover:bg-primary/10 px-3 py-2 rounded-lg duration-300" href="#team">Team</a>
-                    </div>
-                    {/* Trailing Action */}
-                    <div className="hidden md:block">
-                        <button 
-                            className="btn-primary text-white font-label-sm text-xs font-semibold px-6 py-2 rounded-lg active:scale-95 duration-200"
-                            onClick={() => onNavigate('dashboard')}
-                        >
-                            Get Started
-                        </button>
-                    </div>
-                </div>
-            </nav>
-
             {/* Main Content */}
             <main className="flex-grow pt-[80px]">
                 {/* Hero Section */}
