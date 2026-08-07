@@ -61,7 +61,7 @@ const TEAM = [
         color: 'from-primary/20',
         border: 'hover:border-primary/30',
         textColor: 'text-primary/80',
-        avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCEmBBjaYFh7R17O0rqlxuxPjk5kZjtSZVX88cCoDKpHoRs-MdZnfQvl7Cc0HLFByoTot-7Qaxe_0qgRSyO8dp6492Rq0jFXtoLn98wBSgXBvpta346Z2S1m4iLYoXP9Z24pKwKL6uj4dxWt3MUJNjFvb8w3RkObYJOGe8Cz1zRh36x2xUaUkuNu_CloEkWQ6LkIoJ0pS3ywShG7g9CsjjYLnzaJgBntB1L-m8sVJPfPp1RNcZyxMqpqzfpFmgk9dp4n6cKgXd31w'
+        avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCSF1XWISjZpmALr5aKhoaXXgD6MTayT0RNxUBx_VvJ3Qtrxl1hi39WosLiGVnlfGE-EvKVQl-2p0pccKeE2yXx17EecSW47Iv-iKTKwX3yz5kstyDtuKlykLyz08bKW0PPbE5J4yRoxkQkzeUpOFt5NlyLSnl3LP495G17OeB7u0x3hb9HJqPvuI97UfEXxH4_J9NMZlSwHNTIhXJrkoHdkX9N8Uxy8cAKy5EpzGHamGONT246SYcf8cnRsPxQ9uaWGhobDyjiwQ'
     },
     {
         name: 'Harsha',
@@ -69,7 +69,7 @@ const TEAM = [
         color: 'from-secondary/20',
         border: 'hover:border-secondary/30',
         textColor: 'text-secondary/80',
-        avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCSF1XWISjZpmALr5aKhoaXXgD6MTayT0RNxUBx_VvJ3Qtrxl1hi39WosLiGVnlfGE-EvKVQl-2p0pccKeE2yXx17EecSW47Iv-iKTKwX3yz5kstyDtuKlykLyz08bKW0PPbE5J4yRoxkQkzeUpOFt5NlyLSnl3LP495G17OeB7u0x3hb9HJqPvuI97UfEXxH4_J9NMZlSwHNTIhXJrkoHdkX9N8Uxy8cAKy5EpzGHamGONT246SYcf8cnRsPxQ9uaWGhobDyjiwQ'
+        avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCEmBBjaYFh7R17O0rqlxuxPjk5kZjtSZVX88cCoDKpHoRs-MdZnfQvl7Cc0HLFByoTot-7Qaxe_0qgRSyO8dp6492Rq0jFXtoLn98wBSgXBvpta346Z2S1m4iLYoXP9Z24pKwKL6uj4dxWt3MUJNjFvb8w3RkObYJOGe8Cz1zRh36x2xUaUkuNu_CloEkWQ6LkIoJ0pS3ywShG7g9CsjjYLnzaJgBntB1L-m8sVJPfPp1RNcZyxMqpqzfpFmgk9dp4n6cKgXd31w'
     },
     {
         name: 'Shivagya',
