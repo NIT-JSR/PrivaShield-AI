@@ -25,10 +25,7 @@ services:
     destination: /index.html
   envVars:
   - key: VITE_BACKEND_URL
-    fromService:
-      name: privashield-backend
-      type: web
-      property: host
+    value: https://privashield-backend.onrender.com
   runtime: static
   staticPublishPath: dist
 
