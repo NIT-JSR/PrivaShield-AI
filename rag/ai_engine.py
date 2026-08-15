@@ -168,7 +168,7 @@ def chat_with_policy(query: str, policy_text: str) -> str:
     if not policy_text:
         return "Error: Policy data not found. Please refresh the analysis."
 
-    print(f"🔎 Answering chat question directly using RAG chunks...")
+    print(f"[RAG] Answering chat question directly using RAG chunks...")
     chunks = chunk_text(policy_text)
     retrieved = retrieve_chunks(query, chunks, top_k=5)
     
@@ -210,7 +210,7 @@ async def chat_with_policy_async(query: str, policy_text: str) -> str:
     if not policy_text:
         return "Error: Policy data not found. Please refresh the analysis."
 
-    print(f"🔎 Answering chat question asynchronously using RAG chunks...")
+    print(f"[RAG] Answering chat question asynchronously using RAG chunks...")
     chunks = chunk_text(policy_text)
     retrieved = retrieve_chunks(query, chunks, top_k=5)
     
