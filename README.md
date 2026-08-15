@@ -101,6 +101,30 @@ Here is a step-by-step walkthrough of what happens under the hood during a typic
 
 ---
 
+## ⚙️ Process Coordination & Launcher Mechanics (Behind the Scenes)
+
+When running the application, multiple processes operate and coordinate asynchronously. Here is how they interact behind the scenes:
+
+### 1. Unified Launcher (`run_all.ps1`) Process Spawning
+When you execute the unified script `.\run_all.ps1`, the following actions occur at the OS level:
+* **Asynchronous Subprocess Detachment**: The script uses PowerShell's `Start-Process` cmdlet to spawn three separate, persistent terminal windows. Each subprocess is given its own process ID (PID) and CPU execution thread.
+* **Component Startup Isolation**:
+  1. **Python Engine (Port 8000)**: Spawns a PowerShell instance, activates the virtual environment (`venv\Scripts\activate`), and runs `start_server.py`. Uvicorn initializes, creates the SQLite file `storage/privashield.db` via SQLAlchemy if it is missing, runs structural migrations, and binds to all interfaces on port `8000`.
+  2. **Express Gateway (Port 5000)**: Spawns a shell, installs dependencies if necessary, and starts the Node server. It binds to port `5000` and configures proxy routing rules.
+  3. **Vite Development Server (Port 5173)**: Spawns a shell and runs `vite`. Vite loads configuration scopes, parses environment variables, prepares Hot Module Replacement (HMR) sockets, and serves raw frontend assets on port `5173`.
+
+### 2. Port Binding, Network Traffic, & CORS Redirection
+The three components run on separate ports, which introduces security and coordination challenges:
+* **The CORS Challenge**: If the browser client (port `5173` or the Chrome extension popup) directly called the FastAPI backend (port `8000`), the browser would block the request due to Same-Origin Policy (SOP).
+* **The Reverse Proxy Solution**: The Node.js Express server acts as a Reverse Proxy. It binds HTTP routing patterns (e.g. `/api/rag`) to target the FastAPI engine using `http-proxy-middleware`. All frontend traffic is routed through port `5000`, which modifies header properties to enable cross-origin (CORS) access safely.
+
+### 3. Cooperative Multitasking and Asynchronous Concurrency
+To handle heavy LLM traffic without slowing down user responses, the FastAPI backend uses Python's `asyncio` event loop:
+* **Zero Thread-Overhead Concurrency**: Instead of spawning heavy OS threads (which eat system memory and introduce context-switching latency), Python uses cooperative multitasking.
+* **Non-Blocking I/O**: When the backend waits for external events (e.g. fetching policy text via `httpx` or waiting for the Groq API response), the execution scope yields control back to the event loop. The loop immediately runs the next task (like permission mapping or hidden clause detection). This is why parallelizing tasks with `asyncio.gather()` results in massive latency reduction.
+
+---
+
 ## 🏗️ Technical Architecture
 
 See [Pipeline Flow] diagram above for visual routing overview.
