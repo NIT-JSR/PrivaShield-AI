@@ -37,40 +37,73 @@ PrivaShield AI is an intelligent legal-to-technical compliance audit platform. I
 
 ---
 
+## 🔍 Behind-The-Scenes Execution Flow
+
+Here is a step-by-step walkthrough of what happens under the hood during a typical user lifecycle:
+
+### Phase 1: Policy Analysis Workflow
+```
+[User Action] ➔ [Node Gateway] ➔ [FastAPI Router] ➔ [Cache Check] 
+                                                        │
+                      ┌─────────────────────────────────┴───┐
+                  (Cache Hit)                           (Cache Miss)
+                      │                                     │
+             [Return Cache JSON]                     [Clean HTML Content]
+                                                            │
+                                                     [asyncio.gather]
+                                             ┌──────────────┼──────────────┐
+                                             ▼              ▼              ▼
+                                        [Pipeline]     [Permissions]   [Hidden]
+                                             │
+                                     (Stage 1: Extract)
+                                             │
+                                     (Stage 2: Score)
+                                             │
+                                     (Stage 3: Verify)
+                                             │
+                                             ▼
+                                     [Collate Payloads]
+                                             │
+                                    [SQLiteCache Check]
+                                             │
+                                     [Save File & DB] ➔ [Render View]
+```
+
+1. **Ingestion & Proxying**: The user triggers an analysis (via URL or paste) from the frontend. The request hits the Node.js Express Gateway, which adds headers for extension context mapping, and forwards the payload to FastAPI on `http://localhost:8000/full-analysis`.
+2. **File Caching Check**: The FastAPI backend generates an MD5 hash of the URL and searches `storage/analysis_cache/` for a matching `*_v3.json` file. If found, it returns the cached result in **~1-2ms** bypassing all AI calls.
+3. **HTML Sanitization**: On a cache miss, the engine extracts raw text from the input HTML. `BeautifulSoup4` decomposes `<script>`, `<style>`, `<header>`, and `<footer>` nodes to prevent DOM/prompt injection and minimize tokens.
+4. **Concurrent Multi-Agent Dispatch**: The system launches three asynchronous tasks in parallel via `asyncio.gather()`:
+   * **The Sequential Pipeline**: Initiates `pipeline.run_full_pipeline()`.
+     * **Stage 1 (Extractor)**: The text is cropped to the first 20,000 characters and sent to Groq. It extracts structural facts matching a strict JSON schema, ensuring every claim is backed by a verbatim `source_quote`.
+     * **Stage 2 (Risk Analyzer)**: Receives the JSON data from Stage 1. It calculates trust score deductions and translates the remaining score into a grade (A-F).
+     * **Stage 3 (Verifier)**: Cross-checks the risk data. It checks that quotes match the original text exactly, verifies deduction math, and filters out non-neutral language.
+   * **Permission Mapper**: Simultaneously parses the policy text to map OS permissions.
+   * **Hidden Clause Detector**: Simultaneously scans the document for hidden legal clauses.
+5. **SQLite Prompt Cache Interception**: During each LLM invocation inside the agents, LangChain interceptors query `storage/llm_cache.db`. If the exact prompt was processed before, it returns the LLM response instantly without invoking Groq's APIs.
+6. **Data Consolidation & Storage**: The backend merges the sequential pipeline's output, permissions, and hidden clauses. The result is stored in SQLite (`storage/privashield.db`), written as a local cache file, and returned to the client.
+
+### Phase 2: RAG Q&A Chat Workflow
+```
+[Chat Question] ➔ [Fetch DB Policy] ➔ [Semantic Chunking] ➔ [TF-IDF Keyword Similarity]
+                                                                        │
+                                                    ┌───────────────────┴───┐
+                                              (Score >= 0.55)         (Score < 0.55)
+                                                    │                       │
+                                            [Query Q&A Agent]       [Censor: Silent Reply]
+```
+1. **Document Loading**: When the user posts a chatbot query, FastAPI loads the verified policy text from the database.
+2. **Semantic Boundary Chunking**: The text is chunked dynamically using LangChain's `RecursiveCharacterTextSplitter` into overlapping blocks, preventing information loss at boundaries.
+3. **Overlapped Similarity Retrieval**: The question is tokenized (excluding stopwords). A similarity algorithm calculates overlap metrics across all document chunks, returning the top 5 chunks.
+4. **Relevance Guard (Censoring)**:
+   * If the highest chunk score is below **0.55**, the system declines to answer (`document_silent_on_topic: true`) to avoid hallucinations.
+   * If the score matches, it sends the top 5 chunks and the question to the Q&A Agent.
+5. **Structured Return**: The chatbot receives the response containing chunk citations and confidence levels, rendering color-coded badges to the user.
+
+---
+
 ## 🏗️ Technical Architecture
 
-```
-   ┌──────────────────────────────────────────────┐
-   │         React Frontend / Chrome Extension    │
-   └──────────────────────┬───────────────────────┘
-                          │ (REST API Gateway call)
-   ┌──────────────────────▼───────────────────────┐
-   │         Node.js Express API Gateway          │
-   └──────────────────────┬───────────────────────┘
-                          │ (Internal FastAPI proxy)
-   ┌──────────────────────▼───────────────────────┐
-   │          FastAPI RAG Backend Engine          │
-   └──────────────────────┬───────────────────────┘
-                          │
-             [3-Stage Agentic Pipeline]
-                          │
-  ┌───────────────────────▼───────────────────────┐
-  │  Stage 1: EXTRACTOR                           │ ➔ Extracts structured facts & verbatim quotes
-  └───────────────────────┬───────────────────────┘
-                          │
-  ┌───────────────────────▼───────────────────────┐
-  │  Stage 2: RISK ANALYZER                       │ ➔ Executes deduction rubric (0-100 & A-F)
-  └───────────────────────┬───────────────────────┘
-                          │
-  ┌───────────────────────▼───────────────────────┐
-  │  Stage 3: VERIFIER                            │ ➔ Cross-checks quote matches & math consistency
-  └───────────────────────────────────────────────┘
-          ▲                               ▲
-          │ (Concurrent)                  │ (Concurrent)
-  ┌───────┴───────────────┐       ┌───────┴───────┐
-  │   Permission Mapper   │       │ Hidden Clause │
-  └───────────────────────┘       └───────────────┘
-```
+See [Pipeline Flow] diagram above for visual routing overview.
 
 ---
 
