@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const DEMO_SCORES = [78, 45, 91, 32, 67];
 
 const FEATURES = [
     {
@@ -98,6 +100,23 @@ const TEAM = [
 ];
 
 export default function LandingPage({ onNavigate }) {
+    const [demoScore, setDemoScore] = useState(78);
+    const [demoIdx, setDemoIdx] = useState(0);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setDemoIdx(i => {
+                const next = (i + 1) % DEMO_SCORES.length;
+                setDemoScore(DEMO_SCORES[next]);
+                return next;
+            });
+        }, 3000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const demoColor = demoScore >= 75 ? '#10b981' : demoScore >= 55 ? '#f59e0b' : demoScore >= 35 ? '#f97316' : '#ef4444';
+    const demoLabel = demoScore >= 75 ? 'SAFE' : demoScore >= 55 ? 'FAIR' : demoScore >= 35 ? 'RISKY' : 'CRITICAL';
+
     return (
         <div className="flex-grow flex flex-col">
             {/* Main Content */}
@@ -182,11 +201,11 @@ export default function LandingPage({ onNavigate }) {
                             <div className="w-32 h-32 relative flex items-center justify-center">
                                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                                     <path className="text-[#1d1e2e]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3"></path>
-                                    <path className="text-primary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeDasharray="85, 100" strokeWidth="3"></path>
+                                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={demoColor} strokeDasharray={`${demoScore}, 100`} strokeWidth="3" style={{ transition: 'stroke-dasharray 1s ease, stroke 0.5s ease' }}></path>
                                 </svg>
                                 <div className="absolute flex flex-col items-center">
-                                    <span className="font-display-lg text-2xl font-bold text-white">92</span>
-                                    <span className="font-label-sm text-[10px] font-semibold text-secondary">SAFE</span>
+                                    <span className="font-display-lg text-2xl font-bold text-white" style={{ transition: 'all 0.5s' }}>{demoScore}</span>
+                                    <span className="font-label-sm text-[10px] font-semibold" style={{ color: demoColor, transition: 'color 0.5s' }}>{demoLabel}</span>
                                 </div>
                             </div>
                         </div>

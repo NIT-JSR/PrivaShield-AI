@@ -140,50 +140,29 @@ async function startAnalysis() {
         state.currentUrl = pageData.url;
         state.currentHtml = pageData.html;
 
-        // Step 2: Send to backend for analysis
+        // Step 2: Run full-analysis (3-stage pipeline + permissions + hidden clauses)
         updateLoadingStep(2);
-        const analyzeResult = await apiCall("/analyze", {
+        const result = await apiCall("/full-analysis", {
             url: state.currentUrl,
             html: state.currentHtml,
         });
 
-        // Step 3: Get risk analysis
+        // Step 3 & 4: Handled inside full-analysis concurrently
         updateLoadingStep(3);
-        let riskResult = {};
-        try {
-            riskResult = await apiCall("/risks", {
-                url: state.currentUrl,
-                html: state.currentHtml,
-            });
-        } catch (e) {
-            console.warn("Risk analysis failed:", e);
-        }
+        const pd = result.pipeline_data || {};
+        const ts = pd.trust_score || {};
 
-        // Step 4: Get permissions + hidden clauses
         updateLoadingStep(4);
-        let permResult = {};
-        let hiddenResult = {};
-        try {
-            [permResult, hiddenResult] = await Promise.all([
-                apiCall("/permissions", {
-                    url: state.currentUrl,
-                    html: state.currentHtml,
-                }),
-                apiCall("/hidden-clauses", {
-                    url: state.currentUrl,
-                    html: state.currentHtml,
-                }),
-            ]);
-        } catch (e) {
-            console.warn("Permission/hidden analysis failed:", e);
-        }
-
-        // Store all results
         state.analysisData = {
-            summary: analyzeResult.summary || "",
-            risks: riskResult.risk_data || {},
-            permissions: permResult.permission_data || {},
-            hiddenClauses: hiddenResult.hidden_clauses_data || {},
+            summary: result.summary || `Trust Score: ${ts.score}/100 (Grade ${ts.grade})`,
+            trustScore: ts.score ?? null,
+            grade: ts.grade ?? null,
+            scoreBreakdown: ts.score_breakdown || [],
+            pipelineRedFlags: pd.red_flags || [],
+            jurisdictionSignals: pd.jurisdiction_signals || [],
+            risks: pd.risk_analysis || result.risk_data || {},
+            permissions: result.permission_data || {},
+            hiddenClauses: result.hidden_clauses_data || pd.hidden_clauses_analysis || {},
         };
 
         // Render all sections
@@ -280,35 +259,40 @@ async function apiCall(endpoint, body) {
 
 function renderSummary() {
     const data = state.analysisData;
-    const risks = data.risks;
 
-    // Risk score gauge
-    const score = risks.overall_risk_score || 0;
-    const level = (risks.risk_level || "UNKNOWN").toLowerCase();
+    // Prefer new trust score (0-100), fallback to old risk score (0-10)
+    const hasTrustScore = data.trustScore !== null && data.trustScore !== undefined;
+    const displayScore = hasTrustScore ? data.trustScore : (data.risks.overall_risk_score || 0);
+    const maxScore = hasTrustScore ? 100 : 10;
+    const level = hasTrustScore
+        ? (data.grade === "A" || data.grade === "B" ? "low" : data.grade === "C" ? "medium" : "critical")
+        : ((data.risks.risk_level || "UNKNOWN").toLowerCase());
 
-    elements.scoreNumber.textContent = score;
-    elements.scoreLevel.textContent = risks.risk_level || "Analyzed";
+    elements.scoreNumber.textContent = displayScore;
+    elements.scoreLevel.textContent = hasTrustScore
+        ? `Grade ${data.grade} / 100`
+        : (data.risks.risk_level || "Analyzed");
     elements.scoreLevel.className = `score-level ${level}`;
 
-    // Animate gauge (circumference = 2πr = 2 * π * 52 ≈ 326.73)
+    // Animate gauge
     const circumference = 326.73;
-    const offset = circumference - (score / 10) * circumference;
+    const offset = circumference - (displayScore / maxScore) * circumference;
     elements.gaugeFill.style.strokeDashoffset = offset;
 
-    // Color the gauge based on score
-    if (score <= 3) {
-        elements.gaugeFill.style.stroke = "#10b981";
-    } else if (score <= 5) {
-        elements.gaugeFill.style.stroke = "#f59e0b";
-    } else if (score <= 7) {
-        elements.gaugeFill.style.stroke = "#f97316";
-    } else {
-        elements.gaugeFill.style.stroke = "#ef4444";
-    }
+    // Gauge color
+    const color = hasTrustScore
+        ? (displayScore >= 75 ? "#10b981" : displayScore >= 55 ? "#f59e0b" : displayScore >= 35 ? "#f97316" : "#ef4444")
+        : (displayScore <= 3 ? "#10b981" : displayScore <= 5 ? "#f59e0b" : displayScore <= 7 ? "#f97316" : "#ef4444");
+    elements.gaugeFill.style.stroke = color;
 
     // Summary text
     const summary = data.summary || "No summary available.";
     elements.summaryContent.innerHTML = formatMarkdown(summary);
+
+    // Jurisdiction signals
+    if (data.jurisdictionSignals?.length > 0) {
+        elements.summaryContent.innerHTML += `<p style="margin-top:8px;font-size:11px;color:#94a3b8">🌍 ${data.jurisdictionSignals.join(", ")}</p>`;
+    }
 }
 
 // ──────────────────────────────────────────────
@@ -543,11 +527,9 @@ async function sendChatMessage() {
     const question = elements.chatInput.value.trim();
     if (!question) return;
 
-    // Add user message
     addChatMessage("user", question);
     elements.chatInput.value = "";
 
-    // Show typing indicator
     const typingEl = addTypingIndicator();
 
     try {
@@ -557,22 +539,28 @@ async function sendChatMessage() {
         });
 
         typingEl.remove();
-        addChatMessage("bot", response.answer || "I couldn't find an answer.");
+        const confidence = response.confidence || null;
+        const silent = response.document_silent_on_topic || false;
+        addChatMessage("bot", response.answer || "I couldn't find an answer.", confidence, silent);
     } catch (error) {
         typingEl.remove();
-        addChatMessage(
-            "bot",
-            `Sorry, I couldn't answer that. ${error.message || "Please make sure the backend is running."}`
-        );
+        addChatMessage("bot", `Sorry, I couldn't answer that. ${error.message || "Please make sure the backend is running."}`);
     }
 }
 
-function addChatMessage(role, text) {
+function addChatMessage(role, text, confidence, silent) {
     const msgDiv = document.createElement("div");
     msgDiv.className = `chat-msg ${role}`;
+    let meta = "";
+    if (role === "bot" && confidence) {
+        const color = confidence === "High" ? "#4ade80" : confidence === "Medium" ? "#facc15" : "#f87171";
+        const bg = confidence === "High" ? "rgba(34,197,94,0.12)" : confidence === "Medium" ? "rgba(234,179,8,0.12)" : "rgba(239,68,68,0.12)";
+        meta += `<span style="display:inline-block;margin-top:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${bg};color:${color}">${confidence === "High" ? "✓" : confidence === "Medium" ? "~" : "?"} ${confidence}</span>`;
+        if (silent) meta += `<span style="font-size:10px;color:#64748b;margin-left:4px;font-style:italic">Policy silent on topic</span>`;
+    }
     msgDiv.innerHTML = `
     <div class="msg-avatar">${role === "bot" ? "🛡️" : "👤"}</div>
-    <div class="msg-bubble">${role === "bot" ? formatMarkdown(text) : escapeHtml(text)}</div>
+    <div class="msg-bubble">${role === "bot" ? formatMarkdown(text) : escapeHtml(text)}${meta}</div>
   `;
     elements.chatMessages.appendChild(msgDiv);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;

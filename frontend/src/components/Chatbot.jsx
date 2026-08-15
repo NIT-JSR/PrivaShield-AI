@@ -33,7 +33,10 @@ export default function Chatbot() {
     const [messages, setMessages] = useState([
         {
             role: 'bot',
-            text: 'Hi! 👋 Enter a URL above that you\'ve already analyzed, then ask me anything about its privacy policy.'
+            text: 'Hi! 👋 Enter a URL above that you\'ve already analyzed, then ask me anything about its privacy policy.',
+            confidence: null,
+            citedChunks: [],
+            silent: false
         }
     ]);
     const [input, setInput] = useState('');
@@ -59,7 +62,7 @@ export default function Chatbot() {
         if (!input.trim() || loading) return;
         const question = input.trim();
         setInput('');
-        setMessages(prev => [...prev, { role: 'user', text: question }]);
+        setMessages(prev => [...prev, { role: 'user', text: question, confidence: null, citedChunks: [] }]);
         setLoading(true);
 
         try {
@@ -75,11 +78,19 @@ export default function Chatbot() {
             }
 
             const data = await res.json();
-            setMessages(prev => [...prev, { role: 'bot', text: data.answer || 'No answer available.' }]);
+            setMessages(prev => [...prev, {
+                role: 'bot',
+                text: data.answer || 'No answer available.',
+                confidence: data.confidence || null,
+                citedChunks: data.cited_chunks || [],
+                silent: data.document_silent_on_topic || false
+            }]);
         } catch (e) {
             setMessages(prev => [...prev, {
                 role: 'bot',
-                text: `Sorry, I couldn't answer that. ${e.message}`
+                text: `Sorry, I couldn't answer that. ${e.message}`,
+                confidence: null,
+                citedChunks: []
             }]);
         } finally {
             setLoading(false);
@@ -128,10 +139,36 @@ export default function Chatbot() {
                             <div className="ps-msg-avatar">
                                 {msg.role === 'bot' ? '🛡️' : '👤'}
                             </div>
-                            <div
-                                className="ps-msg-bubble"
-                                dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.text) }}
-                            />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '80%' }}>
+                                <div
+                                    className="ps-msg-bubble"
+                                    dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.text) }}
+                                />
+                                {/* Confidence badge + silent indicator */}
+                                {msg.role === 'bot' && msg.confidence && (
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                        <span style={{
+                                            fontSize: '10px', fontWeight: '600', padding: '2px 8px',
+                                            borderRadius: '12px', letterSpacing: '0.05em',
+                                            background: msg.confidence === 'High' ? 'rgba(34,197,94,0.15)' : msg.confidence === 'Medium' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)',
+                                            color: msg.confidence === 'High' ? '#4ade80' : msg.confidence === 'Medium' ? '#facc15' : '#f87171',
+                                            border: `1px solid ${msg.confidence === 'High' ? 'rgba(34,197,94,0.3)' : msg.confidence === 'Medium' ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)'}`
+                                        }}>
+                                            {msg.confidence === 'High' ? '✓' : msg.confidence === 'Medium' ? '~' : '?'} {msg.confidence} confidence
+                                        </span>
+                                        {msg.silent && (
+                                            <span style={{ fontSize: '10px', color: 'var(--muted, #888)', fontStyle: 'italic' }}>
+                                                Policy silent on this topic
+                                            </span>
+                                        )}
+                                        {msg.citedChunks && msg.citedChunks.length > 0 && (
+                                            <span style={{ fontSize: '10px', color: 'var(--muted, #888)' }}>
+                                                Sources: {msg.citedChunks.join(', ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ))}
                     {loading && (

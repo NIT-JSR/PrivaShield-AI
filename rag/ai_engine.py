@@ -1,23 +1,17 @@
 import os
 import shutil
 from typing import List, Tuple
+import math
+from collections import Counter
+import re
 
 # HTML & Text Processing
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from llm_config import llm  # shared instance with SQLiteCache
 load_dotenv()
 
-# --- CONFIGURATION ---
-STORAGE_DIR = "storage"
-os.makedirs(STORAGE_DIR, exist_ok=True) # Create folder if not exists
-
-llm = ChatOpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=os.getenv("GROQ_API_KEY", "NOT_SET"),
-    model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-    temperature=0.0,
-)
 
 def clean_html(raw_html: str) -> str:
     """
@@ -118,44 +112,95 @@ async def process_policy_async(html_content: str, url_hash: str, existing_summar
     return summary, "", clean_text
 
 
+def chunk_text(text: str, max_words: int = 200, overlap: int = 50) -> list[dict]:
+    # Use RecursiveCharacterTextSplitter for better semantic boundaries (paragraphs, sentences)
+    # Estimate characters from words (approx 5 chars per word)
+    chunk_size = max_words * 5
+    chunk_overlap = overlap * 5
+    
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        separators=["\n\n", "\n", ".", " ", ""]
+    )
+    
+    docs = splitter.create_documents([text])
+    
+    chunks = []
+    for i, doc in enumerate(docs):
+        chunks.append({
+            "chunk_id": f"chunk_{i}",
+            "text": doc.page_content
+        })
+    return chunks
+
+def tokenize(text: str) -> list[str]:
+    return re.findall(r'\b\w+\b', text.lower())
+
+def retrieve_chunks(query: str, chunks: list[dict], top_k: int = 5) -> list[dict]:
+    query_tokens = set(tokenize(query))
+    # Remove common stop words for better overlap calculation
+    stop_words = {"what", "is", "the", "in", "a", "an", "of", "and", "to", "how", "does", "do", "are", "if"}
+    query_tokens = query_tokens - stop_words
+    
+    if not query_tokens:
+        return []
+    
+    for chunk in chunks:
+        chunk_tokens = set(tokenize(chunk["text"]))
+        if not chunk_tokens:
+            chunk["similarity_score"] = 0
+            continue
+            
+        intersection = query_tokens.intersection(chunk_tokens)
+        # Overlap coefficient (how much of the query is covered by the chunk)
+        score = len(intersection) / len(query_tokens)
+        chunk["similarity_score"] = score
+        
+    sorted_chunks = sorted(chunks, key=lambda x: x["similarity_score"], reverse=True)
+    return sorted_chunks[:top_k]
+
+
 def chat_with_policy(query: str, policy_text: str) -> str:
     """
-    Directly answers user's questions about the policy using the provided policy_text context.
+    Directly answers user's questions about the policy using retrieved chunks.
     """
     if not policy_text:
         return "Error: Policy data not found. Please refresh the analysis."
 
-    print(f"🔎 Answering chat question directly using context window...")
+    print(f"🔎 Answering chat question directly using RAG chunks...")
+    chunks = chunk_text(policy_text)
+    retrieved = retrieve_chunks(query, chunks, top_k=5)
     
-    # We take the first 30,000 characters of the policy. 
-    # That is ~6,000 words, which is more than enough for a standard policy,
-    # and leaves plenty of space in Groq's context window.
-    context = policy_text[:30000]
+    import json
     
-    prompt = f"""
-You are answering questions using a privacy policy document.
+    prompt = f"""You are the Q&A Agent for PolicyLens. You answer user questions about a specific policy using ONLY retrieved chunks provided to you in context — never the full document, never outside knowledge.
 
-Instructions:
-- Answer ONLY using the information found in the context.
-- Do NOT add outside knowledge.
-- Provide a concise, structured answer.
-- If multiple parts of the answer exist, summarize them clearly.
-- If the answer is not found, say:
-  "Hehe, I cannot find that information in the policy."
+INPUT: {{"question": "{query}", "retrieved_chunks": {json.dumps(retrieved, indent=2)}}}
 
-Context:
-{context}
+RULES:
+- If retrieved_chunks' max similarity_score is below 0.55, respond that the document likely doesn't address this question — do not force an answer from weak matches.
+- Cite chunk_id alongside every claim so the frontend can highlight the source in the original document viewer.
+- If chunks conflict, present both and note the conflict — do not silently pick one.
+- 2-4 sentence answers. No legal advice framing.
 
-Question:
-{query}
-
-Answer:
+OUTPUT (JSON only):
+{{
+  "answer": "string",
+  "confidence": "High|Medium|Low",
+  "cited_chunks": ["chunk_id1", "chunk_id2"],
+  "document_silent_on_topic": true|false
+}}
 """
     try:
         response = llm.invoke(prompt)
+        
+        # Try to parse JSON from the response to format it nicely for the user, 
+        # but if we are called by a route expecting a string, we might just return the raw string or parsed JSON.
+        # Keeping return as string to match old signature, but containing JSON format as requested by architecture.
         return response.content
     except Exception as e:
-        return f"AI Error: {str(e)}"
+        return f'{{"error": "AI Error: {str(e)}"}}'
 
 
 async def chat_with_policy_async(query: str, policy_text: str) -> str:
@@ -165,30 +210,32 @@ async def chat_with_policy_async(query: str, policy_text: str) -> str:
     if not policy_text:
         return "Error: Policy data not found. Please refresh the analysis."
 
-    print(f"🔎 Answering chat question asynchronously using context window...")
-    context = policy_text[:30000]
+    print(f"🔎 Answering chat question asynchronously using RAG chunks...")
+    chunks = chunk_text(policy_text)
+    retrieved = retrieve_chunks(query, chunks, top_k=5)
     
-    prompt = f"""
-You are answering questions using a privacy policy document.
+    import json
+    
+    prompt = f"""You are the Q&A Agent for PolicyLens. You answer user questions about a specific policy using ONLY retrieved chunks provided to you in context — never the full document, never outside knowledge.
 
-Instructions:
-- Answer ONLY using the information found in the context.
-- Do NOT add outside knowledge.
-- Provide a concise, structured answer.
-- If multiple parts of the answer exist, summarize them clearly.
-- If the answer is not found, say:
-  "Hehe, I cannot find that information in the policy."
+INPUT: {{"question": "{query}", "retrieved_chunks": {json.dumps(retrieved, indent=2)}}}
 
-Context:
-{context}
+RULES:
+- If retrieved_chunks' max similarity_score is below 0.55, respond that the document likely doesn't address this question — do not force an answer from weak matches.
+- Cite chunk_id alongside every claim so the frontend can highlight the source in the original document viewer.
+- If chunks conflict, present both and note the conflict — do not silently pick one.
+- 2-4 sentence answers. No legal advice framing.
 
-Question:
-{query}
-
-Answer:
+OUTPUT (JSON only):
+{{
+  "answer": "string",
+  "confidence": "High|Medium|Low",
+  "cited_chunks": ["chunk_id1", "chunk_id2"],
+  "document_silent_on_topic": true|false
+}}
 """
     try:
         response = await llm.ainvoke(prompt)
         return response.content
     except Exception as e:
-        return f"AI Error: {str(e)}"
+        return f'{{"error": "AI Error: {str(e)}"}}'

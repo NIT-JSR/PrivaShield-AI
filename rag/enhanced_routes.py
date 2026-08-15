@@ -16,6 +16,7 @@ import ai_engine
 import database
 from database import get_db
 import risk_analyzer
+import pipeline
 
 enhanced_router = APIRouter(tags=["Enhanced Analysis"])
 
@@ -50,11 +51,9 @@ class HiddenClauseResponse(BaseModel):
 class FullAnalysisResponse(BaseModel):
     status: str
     url: str
-    summary: str
-    risk_data: dict
+    pipeline_data: dict
     permission_data: dict
     hidden_clauses_data: dict
-
 
 # ──────────────────────────────────────────────
 #  ENDPOINTS
@@ -120,19 +119,19 @@ async def get_hidden_clauses(request: PolicyRequest):
 
 
 @enhanced_router.post("/full-analysis", response_model=FullAnalysisResponse)
-async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db)):
+async def get_full_analysis(request: PolicyRequest):
     """
     Complete analysis pipeline optimized for concurrent parallel execution with caching:
     1. Check if we have a cached JSON analysis file in storage/analysis_cache/.
     2. If yes, load and return it instantly (~1ms).
-    3. If no, clean HTML, run parallel AI analysis, save cache file, and return.
+    3. If no, clean HTML, run the new 3-stage pipeline, save cache file, and return.
     """
     import asyncio
     import json
     
     url_hash = hashlib.md5(request.url.encode()).hexdigest()
     cache_dir = "storage/analysis_cache"
-    cache_path = os.path.join(cache_dir, f"{url_hash}.json")
+    cache_path = os.path.join(cache_dir, f"{url_hash}_v3.json")
     
     # 1. Check cache
     if os.path.exists(cache_path):
@@ -142,13 +141,11 @@ async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db
             return FullAnalysisResponse(
                 status="cached",
                 url=request.url,
-                summary=cached_data.get("summary", ""),
-                risk_data=cached_data.get("risk_data", {}),
+                pipeline_data=cached_data.get("pipeline_data", {}),
                 permission_data=cached_data.get("permission_data", {}),
                 hidden_clauses_data=cached_data.get("hidden_clauses_data", {})
             )
         except Exception as e:
-            # If cache file is corrupted, print warning and proceed to re-analyze
             print(f"Error reading cache file {cache_path}: {e}")
 
     clean_text = ai_engine.clean_html(request.html)
@@ -156,46 +153,47 @@ async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db
     if len(clean_text) < 100:
         raise HTTPException(status_code=400, detail="Content too short to analyze.")
 
-    # Define all four analysis tasks to be executed in parallel
-    summary_task = ai_engine.process_policy_async(request.html, url_hash)
-    risks_task = risk_analyzer.analyze_risks_async(clean_text)
+    pipeline_task = pipeline.run_full_pipeline(clean_text)
     permissions_task = risk_analyzer.map_permissions_async(clean_text)
     hidden_task = risk_analyzer.detect_hidden_clauses_async(clean_text)
 
     try:
-        # Gather all results concurrently (takes ~5-8 seconds total, down from 32+ seconds!)
-        summary_res, risk_data, permission_data, hidden_data = await asyncio.gather(
-            summary_task,
-            risks_task,
+        pipeline_data, permission_data, hidden_data = await asyncio.gather(
+            pipeline_task,
             permissions_task,
             hidden_task
         )
-        summary, _, policy_text = summary_res
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Parallel analysis failed: {str(e)}"
+            detail=f"Concurrent pipeline analysis failed: {str(e)}"
         )
 
-    # Save to database synchronously (extremely fast, doesn't block LLMs)
-    if policy_text:
-        try:
-            existing = database.get_scan_by_url(db, request.url)
-            if existing:
-                existing.risk_summary = summary
-                existing.policy_text = policy_text
-                db.commit()
-            else:
-                database.create_scan(db, request.url, summary, "", policy_text)
-        except Exception:
-            pass  # Don't fail the whole analysis if DB save fails
+    # Save to database synchronously
+    db = database.SessionLocal()
+    try:
+        existing = database.get_scan_by_url(db, request.url)
+        # Extract a brief summary for the DB if possible
+        summary_text = "Analysis complete."
+        if "trust_score" in pipeline_data:
+            summary_text = f"Trust Score: {pipeline_data['trust_score'].get('score')} ({pipeline_data['trust_score'].get('grade')})"
+            
+        if existing:
+            existing.risk_summary = summary_text
+            existing.policy_text = clean_text
+            db.commit()
+        else:
+            database.create_scan(db, request.url, summary_text, "", clean_text)
+    except Exception:
+        pass  # Don't fail the whole analysis if DB save fails
+    finally:
+        db.close()
 
     # Save to file cache
     try:
         os.makedirs(cache_dir, exist_ok=True)
         cache_content = {
-            "summary": summary,
-            "risk_data": risk_data,
+            "pipeline_data": pipeline_data,
             "permission_data": permission_data,
             "hidden_clauses_data": hidden_data
         }
@@ -207,8 +205,7 @@ async def get_full_analysis(request: PolicyRequest, db: Session = Depends(get_db
     return FullAnalysisResponse(
         status="analyzed",
         url=request.url,
-        summary=summary,
-        risk_data=risk_data,
+        pipeline_data=pipeline_data,
         permission_data=permission_data,
         hidden_clauses_data=hidden_data
     )
