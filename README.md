@@ -104,6 +104,11 @@ Modern React, Vue, or Angular single-page applications (SPAs) do not serve pre-r
 * **Live DOM Scraping via Chrome Extension**: The Chrome extension's `content.js` script queries the live tab DOM *after* JavaScript execution has occurred and the React components are fully hydrated. It captures `document.documentElement.outerHTML` (which contains the actual rendered text) and sends it directly to the backend.
 * **Paste Policy Text Mode**: For systems behind authentication or complex hydration structures, the Dashboard allows users to copy and paste the rendered text directly. This bypasses static page fetching issues.
 
+### 4. TF-IDF & Token Overlap Fallback System
+While the primary search relies on the `SentenceTransformer` vector space to retrieve semantically matching chunks, the system maintains a built-in **TF-IDF/Token Overlap fallback engine**:
+* **Resilience against CPU/Memory limits**: If the local hardware fails to load or host the neural network weights (e.g. out of memory, or running on low-resource legacy systems), the server automatically downgrades the query routine to an in-memory TF-IDF overlap search.
+* **Stopword Filtering**: The fallback tokenizes queries and removes grammatical noise (like "what", "is", "the"), matching keyword densities to guarantee that basic RAG services are never offline.
+
 ---
 
 ## ⚙️ Process Coordination & Launcher Mechanics (Behind the Scenes)
@@ -152,7 +157,7 @@ See [Pipeline Flow] diagram above for visual routing overview.
 | **`SQLAlchemy`** | Object Relational Mapping | Maps DB schemas to database drivers, enabling simple SQLite/MySQL storage swaps. |
 | **`psycopg2-binary`** | Postgres driver support | Provides production-ready database adapters for cloud relational storage. |
 | **`python-dotenv`** | Environment settings | Loads local system variables (like API keys) safely into Python configuration scopes. |
-| **`httpx`** | Asynchronous HTTP Requests | Performs async requests inside `/fetch-html` to fetch remote policy assets without blocking server operations. |
+| **`httpx`** | Asynchronous HTTP Requests | Performs async requests inside `/fetch-html` to fetch remote policy assets. Unlike synchronous `requests`, it yields thread execution back to the event loop, ensuring the backend never freezes while waiting for external server responses. |
 | **`tenacity`** | Retry logic | Implements exponential backoff routines for Groq model endpoint calls during rate limits or server latency spikes. |
 
 ---
