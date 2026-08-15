@@ -1,49 +1,53 @@
 # 🛡️ PrivaShield AI
-### Bridging the Gap Between Opaque Legal Policies and Actual Device Permissions
+### Bridging Dense Legal Disclosures and OS-Level Permissions using Multi-Agent RAG Pipelines
 
-PrivaShield AI is a modern, containerized, multi-agent RAG (Retrieval-Augmented Generation) middleware platform. It translates dense, unreadable privacy policies and terms of service into actionable security ratings, structured fact databases, and context-grounded interactive Q&A. 
-
-By cross-referencing legal disclosures against device-level capabilities, PrivaShield AI transforms **blind consent** into **contextual consent**.
+PrivaShield AI is an intelligent legal-to-technical compliance audit platform. It ingests complex, opaque privacy policies or terms of service, extracts structured facts, maps those statements to requested hardware/software permissions, scores their security risk using a mathematical rubric, and acts as a context-cased interactive Q&A assistant.
 
 ---
 
-## 🚀 Core Features & Their Significance
+## 🚀 Detailed Features & Their Significance
 
-### 1. 3-Stage Sequential Agentic Pipeline
-- **Description**: Document processing flows through a multi-agent sequence: **Extractor Agent** (fact extraction) ➔ **Risk Analyzer Agent** (rubric-based grading) ➔ **Verifier Agent** (anti-hallucination QA).
-- **Significance**: Prevents LLMs from "skipping steps" or making leaps in logic. Isolating extraction from risk calculation ensures that the risk scores are grounded strictly in explicitly stated facts rather than abstract assumptions or model bias.
+### 1. Sequential 3-Stage Agentic Pipeline
+* **Orchestration**: Runs sequentially: **Extractor Agent** (fact and verbatim quote miner) ➔ **Risk Analyzer Agent** (rubric scoring) ➔ **Verifier Agent** (hallucination checker).
+* **Significance**: Large Language Models (LLMs) often hallucinate or combine extraction and analysis stages, leading to skewed reasoning. Separating extraction, grading, and validation ensures that each agent performs a single, testable responsibility.
 
-### 2. Verified Source-Quote Extraction
-- **Description**: Every structured fact extracted from the policy (e.g., data retention limits, deletion mechanisms) is paired with the exact verbatim `source_quote` from the original text.
-- **Significance**: Eradicates the classic "black-box LLM" problem. Users and developers do not have to take the AI's word for it; they can cross-verify any flag against the exact sentence in the target policy.
+### 2. Verified Source-Quote Mapping
+* **Orchestration**: Extracted compliance facts (e.g., deletion availability, third-party sharing details) are paired with the exact verbatim string from the privacy policy.
+* **Significance**: Demystifies black-box AI outputs. Users and legal analysts do not have to trust the AI blindly—they can inspect the verbatim quotes and verify context immediately.
 
-### 3. Strict Rubric-Based Trust Score (0–100)
-- **Description**: Replaces subjective "vibe-based" grading with a strict, math-based deduction system (starting at 100, subtracting set penalties for violations like class-action waivers or data-selling).
-- **Significance**: Provides a repeatable, standardized audit trail. It allows enterprises and users to compare different platforms' privacy practices using a normalized index.
+### 3. Strict Rubric-Based Trust Score (0–100) & Deductions
+* **Orchestration**: Applies a strict mathematical deduction engine starting at 100 points. Set values are subtracted for non-transparent factors (e.g., forced arbitration: -15, no data deletion mechanism: -15, indefinite retention: -15).
+* **Significance**: Replaces subjective "vibe-based" grades with consistent, deterministic scores. The resulting letter grade (A–F) is auditable and repeatable.
 
-### 4. Grounded RAG Chatbot with Citation & Confidence Badging
-- **Description**: A query interface allowing users to ask questions about the policy. It returns answers cited with `chunk_id`s, alongside a dynamically calculated confidence badge (`High / Medium / Low`).
-- **Significance**: The AI self-censors if it doesn't find strong document matches (similarity score < 0.55), notifying the user that the "policy is silent on this topic." This prevents dangerous hallucinations regarding legal rights.
+### 4. Asynchronous Concurrent Mappers
+* **Orchestration**: Runs OS-level device permission mapping (Camera, Contacts, Location, etc.) and hidden clause scanning concurrently using Python's `asyncio.gather()`.
+* **Significance**: Accelerates analysis throughput by processing decoupled tasks in parallel, yielding a comprehensive profile without linear latency buildup.
 
-### 5. Concurrent Enrichers (Permissions & Hidden Clauses)
-- **Description**: Runs mapping for 15 OS-level permissions (e.g., camera, location tracking) and scans for hidden legal traps (e.g., forced arbitration, unilateral contract changes) concurrently with the main pipeline.
-- **Significance**: Delivers comprehensive metadata in a single pass while keeping latency low using parallel async executions (`asyncio.gather()`).
+### 5. Grounded RAG Q&A with Semantic Boundary Control
+* **Orchestration**: Splits policies using paragraph/sentence boundaries. When asked a question, it retrieves the top 5 chunks via keyword overlap, checks similarity, and queries the LLM.
+* **Significance**: Prevents chunk boundaries from slicing critical context in half. The system declines to answer (`confidence: Low`, `silent: true`) if relevant source passages are missing.
+
+### 6. Interactive History & Dashboard Analytics
+* **Orchestration**: Features a local tracking sidebar, animated score gauges, and a tabbed details view (Summary, Trust Score Breakdown, Risks, Permissions, and Hidden Clauses).
+* **Significance**: Saves recently analyzed policies to local state for rapid re-load, visualizing policy performance metrics interactively.
+
+### 7. Manifest V3 Chrome Extension
+* **Orchestration**: In-page scraping of target active tabs, proxying content to backend gateways with one-click analysis popup triggers.
+* **Significance**: Evaluates compliance in real-time as users browse, offering protection without leaving the target web app.
 
 ---
 
-## 🏗️ Technical Architecture & Pipeline Flow
-
-The platform separates the presentation, gateway proxy, and intelligence engine layers to ensure security, cache validation, and execution speed.
+## 🏗️ Technical Architecture
 
 ```
    ┌──────────────────────────────────────────────┐
    │         React Frontend / Chrome Extension    │
    └──────────────────────┬───────────────────────┘
-                          │ (HTTPS / CORS-enabled REST)
+                          │ (REST API Gateway call)
    ┌──────────────────────▼───────────────────────┐
    │         Node.js Express API Gateway          │
    └──────────────────────┬───────────────────────┘
-                          │ (Internal API Proxy)
+                          │ (Internal FastAPI proxy)
    ┌──────────────────────▼───────────────────────┐
    │          FastAPI RAG Backend Engine          │
    └──────────────────────┬───────────────────────┘
@@ -70,53 +74,60 @@ The platform separates the presentation, gateway proxy, and intelligence engine 
 
 ---
 
-## 🛠️ Tech Stack & Significance
+## 🛠️ Complete Tech Stack & Package Significance
 
-| Layer / Library | Technology Used | Significance |
+### 1. Python RAG Engine (FastAPI & LangChain Stack)
+
+| Package / Library | Purpose in Project | Technical Significance |
 |:---|:---|:---|
-| **Frontend** | React 19 + Vite 7 | Provides a lightning-fast Single Page Application (SPA) dashboard. Vite optimizes development reloading and bundles asset chunks dynamically for instant load times. |
-| **Styling** | Vanilla CSS + Tailwind | Delivers a highly responsive, modern dark-mode aesthetic with custom animated glassmorphism panels, while avoiding heavy framework overhead. |
-| **API Gateway** | Node.js + Express | Acts as a secure, stateless reverse proxy, decoupling the client UI from the Python backend to prevent direct exposition of AI endpoints. |
-| **Engine** | FastAPI (Python) | High-performance, asynchronous REST framework that handles incoming payloads natively, enabling rapid async I/O loops. |
-| **LLM Provider** | Groq (Llama-3.3-70b-versatile) | Provides sub-second inference latency, making a multi-agent pipeline feasible by keeping wait times down. |
-| **Prompt Cache** | LangChain `SQLiteCache` | Intercepts repeated prompt patterns. If an identical question is asked, it serves the answer from a local database instantly (0 API calls, zero cost, zero rate-limit risk). |
-| **Chunking** | LangChain `RecursiveCharacterTextSplitter` | Intelligently segments long legal documents based on natural boundaries (paragraphs, punctuation) so sentences do not get sliced in half at chunk edges. |
-| **Database** | SQLAlchemy + SQLite | Provides zero-config, highly portable local storage for policy logs and cached summaries, easily swappable to PostgreSQL or MySQL in production. |
-| **HTML Parser** | BeautifulSoup4 | Strips scripts, styling sheets, nav elements, and tracking trackers from raw HTML payloads, mitigating prompt-injection risks. |
+| **`fastapi`** | REST API Routing | Asynchronous framework with Pydantic integrations, providing low-latency routing and automatic OpenAPI documentation. |
+| **`uvicorn`** | ASGI Server hosting | Manages worker loops and handles client concurrency for python processes. |
+| **`langchain-core`** | LLM orchestrations | Standardizes model interfaces, configuration, and invocation syntax (e.g. `ainvoke` and runnables). |
+| **`langchain-community`** | Persistence & Caching | Provides database connectors for SQLite prompt caches (`SQLiteCache`), avoiding duplicated external requests. |
+| **`langchain-openai`** | Model Client | Interfaces with the OpenAI-compatible Groq endpoint using high-speed streaming integrations. |
+| **`langchain-text-splitters`** | Content chunking | Contains the `RecursiveCharacterTextSplitter` which divides text based on native boundaries (`\n\n`, `.`, ` `) instead of cutting sentences. |
+| **`beautifulsoup4`** | HTML processing | Cleans crawled web content by removing scripts, styling, headers, and footer garbage to block prompt injections. |
+| **`SQLAlchemy`** | Object Relational Mapping | Maps DB schemas to database drivers, enabling simple SQLite/MySQL storage swaps. |
+| **`psycopg2-binary`** | Postgres driver support | Provides production-ready database adapters for cloud relational storage. |
+| **`python-dotenv`** | Environment settings | Loads local system variables (like API keys) safely into Python configuration scopes. |
+| **`httpx`** | Asynchronous HTTP Requests | Performs async requests inside `/fetch-html` to fetch remote policy assets without blocking server operations. |
+| **`tenacity`** | Retry logic | Implements exponential backoff routines for Groq model endpoint calls during rate limits or server latency spikes. |
 
 ---
 
-## 📂 Project Structure
+### 2. Node.js API Gateway Stack
 
-```
-PrivaShield-AI/
-├── extension/              # Chrome Extension (Manifest V3)
-│   ├── manifest.json       # Browser configuration
-│   ├── popup.html/css/js   # Extension dashboard popup UI
-│   └── content.js          # In-page HTML text scraper
-│
-├── backend/                # Node.js API Gateway Proxy
-│   └── src/server.js       # Express gateway script
-│
-├── frontend/               # React + Vite Dashboard
-│   └── src/
-│       ├── components/
-│       │   ├── LandingPage.jsx   # Interactive marketing page & live gauge demo
-│       │   ├── Dashboard.jsx     # Analysis dashboard, History list, & Score breakdown
-│       │   └── Chatbot.jsx       # RAG chat component with sources & confidence
-│       └── privashield.css       # Unified design token stylesheet
-│
-├── rag/                    # FastAPI AI RAG Engine
-│   ├── main.py             # FastAPI entry router
-│   ├── pipeline.py         # 3-Stage Agentic Pipeline Orchestrator
-│   ├── ai_engine.py        # Text clean, recursive split, TF-IDF RAG matcher
-│   ├── risk_analyzer.py    # Permission mapping & hidden clause detection logic
-│   ├── llm_config.py       # Shared LLM instance & persistent SQLiteCache
-│   ├── database.py         # Local SQLite DB configuration and schema
-│   └── requirements.txt    # Python packages
-│
-└── README.md
-```
+| Package / Library | Purpose in Project | Technical Significance |
+|:---|:---|:---|
+| **`express`** | Gateway Routing | Lightweight framework to accept UI calls and route them safely to underlying microservices. |
+| **`cors`** | CORS Policy control | Manages cross-origin permissions, allowing Chrome Extension context access without configuration blocks. |
+| **`http-proxy-middleware`**| API Proxying | Transparently forwards client requests to the python RAG backend, hiding inner IP topology. |
+| **`dotenv`** | Config Management | Loads environment vars for port assignments and base URLs. |
+
+---
+
+### 3. Frontend & Client Stack (React & Chrome Extension)
+
+| Package / Library | Purpose in Project | Technical Significance |
+|:---|:---|:---|
+| **`react` (v19)** | UI State rendering | Handles UI rendering loops, local states, and component mount routines. |
+| **`vite` (v7)** | Dev & Bundler tool | Offers hot module replacement (HMR) and bundles optimized client assets. |
+| **Manifest V3** | Extension architecture | The security-oriented Chrome extension standard utilizing service-worker architectures and secure background scripts. |
+| **Local Storage** | Session caching | Maintains client-side state of the 10 most recent URL analysis operations so data is preserved across page refreshes. |
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description | Payload Schema |
+|:---|:---|:---|:---|
+| `GET` | `/` | Service health check | None |
+| `POST` | `/analyze` | Invokes the sequential 3-stage agentic pipeline and saves results | `{"url": "string", "html": "string"}` |
+| `POST` | `/chat` | RAG-grounded question query returning chunk citations and confidence | `{"url": "string", "question": "string"}` |
+| `POST` | `/risks` | Returns raw risk factors, data collected categories, and severity | `{"url": "string", "html": "string"}` |
+| `POST` | `/permissions` | Maps privacy policy statements to device hardware permissions | `{"url": "string", "html": "string"}` |
+| `POST` | `/hidden-clauses` | Inspects policy for arbitration, waivers, or licensing clauses | `{"url": "string", "html": "string"}` |
+| `POST` | `/full-analysis` | Asynchronously executes the pipeline + mappers concurrently | `{"url": "string", "html": "string"}` |
 
 ---
 
@@ -141,7 +152,10 @@ The engine automatically configures a local SQLite file (`storage/privashield.db
 ```bash
 cd rag
 python -m venv venv
+# On Windows:
 venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
 pip install -r requirements.txt
 # Populate your GROQ_API_KEY in the generated .env file
 python run.py
@@ -165,20 +179,6 @@ npm run dev
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable **Developer mode** in the top right corner.
 3. Click **Load unpacked** and select the root `extension/` directory.
-
----
-
-## 🔌 API Gateway Endpoints
-
-| Method | Endpoint | Description | Payload Schema |
-|:---|:---|:---|:---|
-| `GET` | `/` | Service health check | None |
-| `POST` | `/analyze` | Invokes the sequential 3-stage agentic pipeline and saves results | `{"url": "string", "html": "string"}` |
-| `POST` | `/chat` | RAG-grounded question query returning chunk citations and confidence | `{"url": "string", "question": "string"}` |
-| `POST` | `/risks` | Returns raw risk factors, data collected categories, and severity | `{"url": "string", "html": "string"}` |
-| `POST` | `/permissions` | Maps privacy policy statements to device hardware permissions | `{"url": "string", "html": "string"}` |
-| `POST` | `/hidden-clauses` | Inspects policy for arbitration, waivers, or licensing clauses | `{"url": "string", "html": "string"}` |
-| `POST` | `/full-analysis` | Asynchronously executes the pipeline + enrichers concurrently | `{"url": "string", "html": "string"}` |
 
 ---
 
