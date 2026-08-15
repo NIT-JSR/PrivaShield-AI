@@ -99,6 +99,11 @@ Here is a step-by-step walkthrough of what happens under the hood during a typic
    * If the score matches, it sends the top 5 chunks and the question to the Q&A Agent.
 5. **Structured Return**: The chatbot receives the response containing chunk citations and confidence levels, rendering color-coded badges to the user.
 
+### Phase 3: Handling React SPAs & Client-Rendered Policies
+Modern React, Vue, or Angular single-page applications (SPAs) do not serve pre-rendered text over basic HTTP. If you run a static GET request on them, the server only receives a blank root skeleton (`<div id="root"></div>`). PrivaShield AI solves this with two ingestion strategies:
+* **Live DOM Scraping via Chrome Extension**: The Chrome extension's `content.js` script queries the live tab DOM *after* JavaScript execution has occurred and the React components are fully hydrated. It captures `document.documentElement.outerHTML` (which contains the actual rendered text) and sends it directly to the backend.
+* **Paste Policy Text Mode**: For systems behind authentication or complex hydration structures, the Dashboard allows users to copy and paste the rendered text directly. This bypasses static page fetching issues.
+
 ---
 
 ## ⚙️ Process Coordination & Launcher Mechanics (Behind the Scenes)
