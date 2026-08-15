@@ -10,7 +10,18 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from llm_config import llm  # shared instance with SQLiteCache
+from sentence_transformers import SentenceTransformer
+import numpy as np
 load_dotenv()
+
+# Load semantic embedding model globally for fast vector search
+try:
+    print("[Semantic RAG] Loading sentence-transformers/all-MiniLM-L6-v2 model...")
+    embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    print("[Semantic RAG] Model loaded successfully.")
+except Exception as e:
+    print(f"[Semantic RAG] Failed to load SentenceTransformer: {e}. Falling back to token overlap search.")
+    embedding_model = None
 
 
 def clean_html(raw_html: str) -> str:
@@ -138,22 +149,54 @@ def tokenize(text: str) -> list[str]:
     return re.findall(r'\b\w+\b', text.lower())
 
 def retrieve_chunks(query: str, chunks: list[dict], top_k: int = 5) -> list[dict]:
+    if not chunks:
+        return []
+
+    # ── Semantic Search (Vector Embedding Cosine Similarity) ──────────────────
+    if embedding_model is not None:
+        try:
+            chunk_texts = [chunk["text"] for chunk in chunks]
+            # Encode query and chunks to dense vector space (384-dimensions)
+            query_emb = embedding_model.encode(query, convert_to_numpy=True)
+            chunk_embs = embedding_model.encode(chunk_texts, convert_to_numpy=True)
+
+            # Compute Cosine Similarity: A . B / (||A|| * ||B||)
+            query_norm = np.linalg.norm(query_emb)
+            chunk_norms = np.linalg.norm(chunk_embs, axis=1)
+
+            # Avoid division by zero warnings
+            query_norm = query_norm if query_norm > 0 else 1.0
+            chunk_norms = np.where(chunk_norms > 0, chunk_norms, 1.0)
+
+            dot_products = np.dot(chunk_embs, query_emb)
+            scores = dot_products / (chunk_norms * query_norm)
+
+            for i, chunk in enumerate(chunks):
+                # Cosine similarity score range [-1, 1], normalized to [0, 1] for thresholding
+                chunk["similarity_score"] = float(max(0.0, scores[i]))
+
+            sorted_chunks = sorted(chunks, key=lambda x: x["similarity_score"], reverse=True)
+            return sorted_chunks[:top_k]
+        except Exception as e:
+            print(f"[Semantic RAG] Error in vector similarity search: {e}. Falling back to token overlap.")
+
+    # ── Fallback: Token Overlap Similarity ──────────────────────────────────
     query_tokens = set(tokenize(query))
-    # Remove common stop words for better overlap calculation
     stop_words = {"what", "is", "the", "in", "a", "an", "of", "and", "to", "how", "does", "do", "are", "if"}
     query_tokens = query_tokens - stop_words
     
     if not query_tokens:
-        return []
+        for chunk in chunks:
+            chunk["similarity_score"] = 0.0
+        return chunks[:top_k]
     
     for chunk in chunks:
         chunk_tokens = set(tokenize(chunk["text"]))
         if not chunk_tokens:
-            chunk["similarity_score"] = 0
+            chunk["similarity_score"] = 0.0
             continue
             
         intersection = query_tokens.intersection(chunk_tokens)
-        # Overlap coefficient (how much of the query is covered by the chunk)
         score = len(intersection) / len(query_tokens)
         chunk["similarity_score"] = score
         
