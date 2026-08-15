@@ -249,6 +249,36 @@ npm run dev
 
 ---
 
+## 📈 Enterprise SaaS Roadmap
+
+To transition PrivaShield AI from a local prototype into an enterprise-grade SaaS (Software-as-a-Service) product, the following architectural upgrades are recommended:
+
+### 1. Dedicated Vector Database (`pgvector` / Pinecone)
+* **Rationale**: In-memory cosine calculations fail when indexing thousands of files concurrently. 
+* **Significance**: Migrating to `pgvector` or Pinecone enables $O(\log N)$ semantic retrieval speeds, metadata filtering (e.g. searching only policies updated post-2025), and stateless backend replicas.
+
+### 2. Distributed Task Queues (Celery + Redis)
+* **Rationale**: The heavy 3-stage sequential pipeline currently blocks HTTP request threads.
+* **Significance**: Decouples job triggers from requests. FastAPI immediately returns a `202 Accepted` response with a `task_id`, handing execution to Celery worker nodes. Throttles requests to respect Groq API rate limits.
+
+### 3. Server-Sent Events (SSE) Progress Streaming
+* **Rationale**: Loading spinners during a 10–15 second API wait degrade UX.
+* **Significance**: Streams incremental progress updates (e.g., *Stage 1: Extracting... ➔ Stage 2: Scoring...*) from active Celery worker nodes to the React UI in real-time.
+
+### 4. Hybrid Search (RRF: Dense Semantic + Sparse Keyword)
+* **Rationale**: Vector embeddings struggle to match precise keyword markers (like section headers or version codes).
+* **Significance**: Combines semantic contexts from `all-MiniLM-L6-v2` with direct word indexing (like BM25) to return high-precision legal clause matches.
+
+### 5. Multi-Tenancy & Row-Level Security (RLS)
+* **Rationale**: Storing multi-customer policies in a single SQLite table presents high security risks.
+* **Significance**: Isolates tenant schemas (via PostgreSQL schemas or RLS boundaries) to guarantee that Customer A cannot access Customer B's raw or cached policy indices.
+
+### 6. LLM Gateway & Failover Broker (LiteLLM)
+* **Rationale**: Hardcoded API endpoints crash if the primary LLM provider (Groq) rate-limits or goes offline.
+* **Significance**: Acts as a proxy gateway to automatically load-balance requests across fallback models (e.g., OpenAI, Anthropic, or Azure Llama) with cost tracking per API key.
+
+---
+
 ## 👥 Developers
 
 Built for academic evaluation at **NIT Jamshedpur**.
