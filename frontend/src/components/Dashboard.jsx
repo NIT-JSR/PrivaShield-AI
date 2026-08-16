@@ -83,7 +83,7 @@ function saveHistory(entry) {
   localStorage.setItem("ps_history", JSON.stringify(history.slice(0, 10)));
 }
 
-export default function Dashboard() {
+export default function Dashboard({ currentUser, setCurrentUser }) {
   const [url, setUrl] = useState("");
   const [inputMode, setInputMode] = useState("url");
   const [policyText, setPolicyText] = useState("");
@@ -93,8 +93,18 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("summary");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [history, setHistory] = useState(loadHistory());
+  const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Auth state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // "login" | "register"
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   const retryCount = useRef(0);
   const MAX_RETRIES = 3;
   const stepTimer = useRef(null);
@@ -115,9 +125,14 @@ export default function Dashboard() {
   }, [loading]);
 
   async function fetchApi(endpoint, body) {
+    const token = localStorage.getItem("ps_token");
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -126,6 +141,96 @@ export default function Dashboard() {
     }
     return res.json();
   }
+
+  const fetchHistory = async () => {
+    try {
+      const token = localStorage.getItem("ps_token");
+      if (!token) return;
+      const res = await fetch(`${API_BASE}/history`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data);
+      }
+    } catch (e) {
+      console.error("Failed to load history from DB", e);
+    }
+  };
+
+  const syncHistory = async (token) => {
+    try {
+      const localHist = loadHistory();
+      if (localHist.length === 0) return;
+      
+      for (const item of localHist) {
+        await fetch(`${API_BASE}/history`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            url: item.url,
+            grade: item.grade,
+            score: item.score
+          })
+        });
+      }
+      localStorage.removeItem("ps_history");
+    } catch (e) {
+      console.error("Failed to sync history", e);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchHistory();
+    } else {
+      setHistory(loadHistory());
+    }
+  }, [currentUser]);
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError("");
+    setAuthLoading(true);
+    
+    const endpoint = authMode === "login" ? "/auth/login" : "/auth/register";
+    const payload = authMode === "login" 
+      ? { email: authEmail, password: authPassword }
+      : { email: authEmail, password: authPassword, name: authName };
+      
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || "Authentication failed");
+      }
+      
+      localStorage.setItem("ps_token", data.access_token);
+      await syncHistory(data.access_token);
+      setCurrentUser(data.user);
+      setShowAuthModal(false);
+      
+      const historyRes = await fetch(`${API_BASE}/history`, {
+        headers: { "Authorization": `Bearer ${data.access_token}` }
+      });
+      if (historyRes.ok) {
+        const histData = await historyRes.json();
+        setHistory(histData);
+      }
+    } catch (err) {
+      setAuthError(err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   async function runAnalysis(mode, urlVal, htmlVal) {
     if (mode === "url") {
@@ -191,14 +296,18 @@ export default function Dashboard() {
         setPipelineStep(3); // "done"
 
         // Save to history
-        const entry = {
-          url: targetUrl,
-          grade: normalised.grade,
-          score: normalised.trustScore,
-          ts: Date.now(),
-        };
-        saveHistory(entry);
-        setHistory(loadHistory());
+        if (currentUser) {
+          fetchHistory();
+        } else {
+          const entry = {
+            url: targetUrl,
+            grade: normalised.grade,
+            score: normalised.trustScore,
+            ts: Date.now(),
+          };
+          saveHistory(entry);
+          setHistory(loadHistory());
+        }
 
         setLoading(false);
         setLoadingMsg("");
@@ -252,42 +361,95 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Hidden login button triggered by navbar Sign In */}
+      <button
+        id="trigger-login-btn"
+        onClick={() => { setShowAuthModal(true); setAuthMode("login"); }}
+        style={{ display: "none" }}
+      />
+
       {/* History Panel */}
-      {showHistory && history.length > 0 && (
+      {showHistory && (
         <div style={{
           background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)",
           borderRadius: "12px", padding: "12px", marginBottom: "16px",
         }}>
-          <div style={{ fontSize: "12px", color: "#a78bfa", fontWeight: 600, marginBottom: "8px" }}>
-            Recent Analyses
-          </div>
-          {history.map((h, i) => (
-            <div
-              key={i}
-              onClick={() => { setInputMode("url"); handleAnalyze(h.url); setShowHistory(false); }}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "8px 10px", borderRadius: "8px", cursor: "pointer", marginBottom: "4px",
-                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(139,92,246,0.1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
-            >
-              <span style={{ fontSize: "12px", color: "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
-                {h.url}
-              </span>
-              {h.grade && (
-                <span style={{
-                  fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "6px",
-                  background: h.grade === "A" || h.grade === "B" ? "rgba(16,185,129,0.15)" : h.grade === "C" ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)",
-                  color: h.grade === "A" || h.grade === "B" ? "#10b981" : h.grade === "C" ? "#f59e0b" : "#ef4444",
-                }}>
-                  Grade {h.grade}
-                </span>
-              )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <div style={{ fontSize: "12px", color: "#a78bfa", fontWeight: 600 }}>
+              {currentUser ? `${currentUser.name || currentUser.email.split('@')[0]}'s Analysis History` : "Recent Analyses (Local)"}
             </div>
-          ))}
+            {!currentUser && (
+              <button 
+                onClick={() => { setShowAuthModal(true); setAuthMode("login"); }}
+                style={{ background: "none", border: "none", color: "#a78bfa", fontSize: "11px", textDecoration: "underline", cursor: "pointer" }}
+              >
+                Sign in to sync history
+              </button>
+            )}
+          </div>
+          
+          {history.length === 0 ? (
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "8px", textAlign: "center" }}>
+              No history found. Run an analysis to get started.
+            </div>
+          ) : (
+            history.map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "8px 10px", borderRadius: "8px", marginBottom: "4px",
+                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <span 
+                  onClick={() => { setInputMode("url"); handleAnalyze(h.url); setShowHistory(false); }}
+                  style={{ fontSize: "12px", color: "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%", cursor: "pointer" }}
+                >
+                  {h.url}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {h.grade && (
+                    <span style={{
+                      fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "6px",
+                      background: h.grade === "A" || h.grade === "B" ? "rgba(16,185,129,0.15)" : h.grade === "C" ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)",
+                      color: h.grade === "A" || h.grade === "B" ? "#10b981" : h.grade === "C" ? "#f59e0b" : "#ef4444",
+                    }}>
+                      Grade {h.grade}
+                    </span>
+                  )}
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (currentUser) {
+                        try {
+                          const token = localStorage.getItem("ps_token");
+                          const res = await fetch(`${API_BASE}/history/${h.id}`, {
+                            method: "DELETE",
+                            headers: { "Authorization": `Bearer ${token}` }
+                          });
+                          if (res.ok) {
+                            fetchHistory();
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      } else {
+                        const local = loadHistory().filter(item => item.url !== h.url);
+                        localStorage.setItem("ps_history", JSON.stringify(local));
+                        setHistory(local);
+                      }
+                    }}
+                    style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "12px" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#64748b"}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -633,6 +795,124 @@ export default function Dashboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(15, 23, 42, 0.75)", backdropFilter: "blur(15px)",
+          display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000,
+        }}>
+          <div style={{
+            background: "rgba(255, 255, 255, 0.15)",
+            backdropFilter: "blur(15px)",
+            WebkitBackdropFilter: "blur(15px)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            borderRadius: "16px",
+            padding: "32px",
+            width: "90%",
+            maxWidth: "400px",
+            boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.1), inset 0 0 12px rgba(255, 255, 255, 0.2)",
+            position: "relative",
+            color: "#ffffff"
+          }}>
+            <button
+              onClick={() => setShowAuthModal(false)}
+              className="ps-auth-close"
+            >
+              ✕
+            </button>
+            <h3 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px", color: "#ffffff", textAlign: "center" }}>
+              {authMode === "login" ? "Welcome Back 🛡️" : "Create Account 🛡️"}
+            </h3>
+            <p style={{ fontSize: "12px", color: "#cbd5e1", marginBottom: "24px", textAlign: "center" }}>
+              {authMode === "login" ? "Sign in to access and sync your history." : "Register to sync audits across devices."}
+            </p>
+            
+            {authError && (
+              <div style={{
+                background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+                color: "#fca5a5", borderRadius: "8px", padding: "10px", fontSize: "12px",
+                marginBottom: "16px",
+              }}>
+                ⚠️ {authError}
+              </div>
+            )}
+            
+            <form onSubmit={handleAuthSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {authMode === "register" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9" }}>Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    placeholder="Enter name"
+                    className="ps-auth-input"
+                  />
+                </div>
+              )}
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9" }}>Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="ps-auth-input"
+                />
+              </div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9" }}>Password</label>
+                <input
+                  type="password"
+                  required
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="ps-auth-input"
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="ps-auth-submit"
+              >
+                {authLoading ? "Authenticating..." : authMode === "login" ? "Sign In" : "Register"}
+              </button>
+            </form>
+            
+            <div style={{ marginTop: "20px", textAlign: "center", fontSize: "12px", color: "#cbd5e1" }}>
+              {authMode === "login" ? (
+                <>
+                  Don't have an account?{" "}
+                  <span
+                    onClick={() => { setAuthMode("register"); setAuthError(""); }}
+                    style={{ color: "#a78bfa", cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    Register here
+                  </span>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <span
+                    onClick={() => { setAuthMode("login"); setAuthError(""); }}
+                    style={{ color: "#a78bfa", cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    Sign in here
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

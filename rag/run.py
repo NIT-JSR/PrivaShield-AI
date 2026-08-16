@@ -10,8 +10,10 @@ Usage:
 import database
 from main import app
 from enhanced_routes import enhanced_router
+from auth import auth_router
 
-# Mount the enhanced analysis routes onto the existing app
+# Mount the authentication and enhanced analysis routes
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(enhanced_router)
 
 if __name__ == "__main__":

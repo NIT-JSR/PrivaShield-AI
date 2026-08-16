@@ -35,6 +35,41 @@ PrivaShield AI is an intelligent legal-to-technical compliance audit platform. I
 * **Orchestration**: In-page scraping of target active tabs, proxying content to backend gateways with one-click analysis popup triggers.
 * **Significance**: Evaluates compliance in real-time as users browse, offering protection without leaving the target web app.
 
+### 8. Dual Ingestion Strategies
+* **Orchestration**: Supports both real-time browser DOM scraping via content scripts (capturing client-side hydrated React/Vue/Angular SPAs) and a direct paste text box input on the dashboard.
+* **Significance**: Bypasses typical static page crawler blockages or authorization walls, ensuring privacy policy analysis is accessible for any web application.
+
+### 9. Hybrid Search & CPU-Resilient Fallbacks
+* **Orchestration**: Combines `all-MiniLM-L6-v2` semantic vector similarity scoring with an in-memory TF-IDF token-overlap algorithm. If local hardware constraints prevent the neural network model from loading, it automatically downgrades to a token-overlap search.
+* **Significance**: Guarantees zero service downtime and fast local response times regardless of the hosting system's hardware configurations.
+
+### 10. Multi-Tenant Accounts & Secure Database History (Phase 1 SaaS)
+* **Orchestration**: Implemented direct `bcrypt` password hashing and JWT (JSON Web Tokens) user access flows. Rewrote the sidebar tracking system to query the user's DB scan history (`User` and `UserHistory` tables) instead of anonymous local storage.
+* **Significance**: Enables secure cross-device analysis sharing, prevents client-side data loss when browser data is cleared, and lays the foundation for role-based access and team plans.
+
+### 11. Automated Local-to-Cloud Syncing & Sync Control
+* **Orchestration**: Added a post-authentication synchronization service that automatically reads offline anonymous history items from `localStorage` upon login, pushes them to the DB history service, and clears local browser state.
+* **Significance**: Preserves user data created during anonymous trial sessions, transitioning users to cloud storage with zero data loss or friction.
+
+### 12. Frosted Glassmorphism UI Interfaces & Autofill Correction
+* **Orchestration**: Integrated strict morning-dew glassmorphic auth overlays using 15px background blurs, 15% opacity overlays, subtle inner glows, and shadow spreads. Styled forms using custom responsive classes and overrode `-webkit-autofill` browser defaults.
+* **Significance**: Elevates visual appeal to meet modern product standards while ensuring text readability remains high and fields are not corrupted by browser autocomplete styles.
+
+
+---
+
+## 🧠 Hallucination Prevention & Mitigation Architecture
+
+To guarantee absolute compliance accuracy and prevent the LLM from fabricating legal details, PrivaShield AI integrates strict validation checks across the pipeline:
+
+### 1. Sequential 3-Stage Verification (The Verifier Agent)
+* **Verbatim Quote Cross-Checking**: The final QA pass (implemented in [run_verifier](file:///c:/complete%20web%20development%20camp/project/fullstack/privashield-ai/rag/pipeline.py#L117) inside [pipeline.py](file:///c:/complete%20web%20development%20camp/project/fullstack/privashield-ai/rag/pipeline.py)) scans all extracted compliance claims. It verifies that every extracted `source_quote` exists **verbatim** within the original document. If any quote mismatch is detected, the agent raises a `hallucinated_quote` error and generates a corrected JSON output.
+* **Overclaim & Tone Filters**: Checks that the generated summary text is not alarmist or overly subjective, and flags any summary statement that overclaims what the source quote actually states (e.g. quote says *"may share data"* but the summary says *"will sell your data"*).
+
+### 2. Closed-Domain Grounded RAG Chat
+* **Similarity Score Guardrails**: During chat sessions ([chat_with_policy_async](file:///c:/complete%20web%20development%20camp/project/fullstack/privashield-ai/rag/ai_engine.py#L249) inside [ai_engine.py](file:///c:/complete%20web%20development%20camp/project/fullstack/privashield-ai/rag/ai_engine.py)), the retrieved chunks are checked for relevance. If the maximum similarity score falls below **0.55**, the Q&A Agent flags `document_silent_on_topic: true` and refuses to invent an answer.
+* **Strict Citations & Boundaries**: The agent outputs structured JSON linking answers directly to specific `cited_chunks`. The LLM prompt restricts answers strictly to the provided context, preventing any usage of external knowledge.
+
 ---
 
 ## 🔍 Behind-The-Scenes Execution Flow
@@ -159,6 +194,12 @@ See [Pipeline Flow] diagram above for visual routing overview.
 | **`python-dotenv`** | Environment settings | Loads local system variables (like API keys) safely into Python configuration scopes. |
 | **`httpx`** | Asynchronous HTTP Requests | Performs async requests inside `/fetch-html` to fetch remote policy assets. Unlike synchronous `requests`, it yields thread execution back to the event loop, ensuring the backend never freezes while waiting for external server responses. |
 | **`tenacity`** | Retry logic | Implements exponential backoff routines for Groq model endpoint calls during rate limits or server latency spikes. |
+| **`sentence-transformers`** | Dense Embeddings generation | Loads the `all-MiniLM-L6-v2` model to encode text chunks into 384-dimensional dense vectors for semantic similarity calculation. |
+| **`numpy`** | Vector computations | Computes dot products and norms to determine cosine similarity scores during RAG context retrieval. |
+| **`SQLiteCache`** (LangChain) | Prompt Caching | Connects to `storage/llm_cache.db` to store query-response matches, preventing redundant Groq API invocations for repeat requests. |
+| **`pyjwt`** | Token security | Implements stateless JWT access token encryption and decoding. |
+| **`bcrypt`** | Password protection | Provides secure one-way salted hashing of user passwords. |
+| **`email-validator`** | Email verification | Validates email address format safety at the schema layer in Pydantic. |
 
 ---
 
@@ -195,6 +236,12 @@ See [Pipeline Flow] diagram above for visual routing overview.
 | `POST` | `/permissions` | Maps privacy policy statements to device hardware permissions | `{"url": "string", "html": "string"}` |
 | `POST` | `/hidden-clauses` | Inspects policy for arbitration, waivers, or licensing clauses | `{"url": "string", "html": "string"}` |
 | `POST` | `/full-analysis` | Asynchronously executes the pipeline + mappers concurrently | `{"url": "string", "html": "string"}` |
+| `POST` | `/auth/register` | Register new user account | `{"email": "str", "password": "str", "name": "str"}` |
+| `POST` | `/auth/login` | Login user and generate access token | `{"email": "str", "password": "str"}` |
+| `GET` | `/auth/me` | Fetch active user credentials profile | None (requires Bearer JWT) |
+| `GET` | `/history` | List scan history records for active user | None (requires Bearer JWT) |
+| `POST` | `/history` | Add scan history record manually (syncing) | `{"url": "str", "grade": "str", "score": "int"}` (requires Bearer JWT) |
+| `DELETE` | `/history/{id}` | Delete scan history record by database ID | None (requires Bearer JWT) |
 
 ---
 

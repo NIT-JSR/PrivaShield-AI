@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import logoImg from '../assets/logo.png';
 
 const DEMO_SCORES = [78, 45, 91, 32, 67];
 
@@ -357,12 +358,12 @@ export default function LandingPage({ onNavigate }) {
                         <div className="flex items-center gap-xs">
                             <img 
                                 alt="PrivaShield AI Logo" 
-                                className="w-6 h-6 rounded-full opacity-80" 
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAzNzCHEIIVFU4fB_O2D0VU0XCv8h_Us6OkhMSakNcuEjG1jzuOVFK1YeAM3mqOn_WsvhVyAUN3uO72KkMkBAcsY6AybPCUwZpoviYl3XWSbcc6qigGNLF8c0WNYUScEmQpxebAs2PwefojLJi23CLfh_7PyuLdU_D4m1OR_1hvprizG5pONRpMTi46eRdHo2YcxRb5S-6ylAIUic3y-v7CIcvMERfnNAOes97Vpl5la0SfKXOF5YAXiieS7hHtOQwhefogJOasQ"
+                                className="w-6 h-6 rounded-full opacity-80 object-cover" 
+                                src={logoImg}
                             />
                             <span className="font-headline-lg text-lg text-primary tracking-tight font-semibold">PrivaShield AI</span>
                         </div>
-                        <p className="font-body-md text-xs text-[#cbc3d7] mt-1">© 2024 PrivaShield AI. All rights reserved.</p>
+                        <p className="font-body-md text-xs text-[#cbc3d7] mt-1">© 2025 PrivaShield AI. All rights reserved.</p>
                     </div>
                     {/* Links */}
                     <div className="flex flex-wrap justify-center gap-md">

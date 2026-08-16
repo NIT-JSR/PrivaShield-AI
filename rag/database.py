@@ -1,7 +1,7 @@
 import os
 import hashlib
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy.orm import sessionmaker, declarative_base, Session, relationship
 from sqlalchemy.sql import func
 from dotenv import load_dotenv
 
@@ -31,7 +31,35 @@ engine = create_engine(DATABASE_URL, pool_recycle=3600, connect_args=connect_arg
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. THE MODEL ---
+# --- 2. THE MODELS ---
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(150), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Nullable if registered via OAuth
+    name = Column(String(100), nullable=True)
+    oauth_provider = Column(String(50), nullable=True)
+    oauth_id = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    history = relationship("UserHistory", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserHistory(Base):
+    __tablename__ = "user_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    url = Column(Text, nullable=False)
+    url_hash = Column(String(64), nullable=False)
+    grade = Column(String(5), nullable=True)
+    score = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="history")
+
+
 class ProcessedSite(Base):
     __tablename__ = "processed_sites"
 
