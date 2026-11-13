@@ -4,7 +4,7 @@
 
 ### Q1: What is PrivaShield AI and what problem does it solve?
 **A:** PrivaShield AI is a comprehensive privacy protection platform that analyzes privacy policies and app permissions to help users understand and mitigate privacy risks. It solves the problem of privacy policy opacity - most users don't read or understand the fine print, exposing them to data harvesting. The project provides:
-- **Risk Analysis**: Scores privacy policies on a 1-10 risk scale
+- **Trust Scoring**: Computes a deterministic 0–100 trust score with letter grades (A–F) and auditable rubric deductions
 - **Permission Mapping**: Shows what device permissions apps actually need
 - **Hidden Clause Detection**: Finds dangerous terms users miss
 - **Browser Extension**: Real-time privacy warnings while browsing
@@ -98,8 +98,9 @@ index.add(embeddings)
 The system runs 3 parallel analyses:
 
 ```python
-# A) Risk Analysis
-- Overall risk score (1-10)
+# A) Risk Analysis & Trust Scoring
+- Deterministic 0-100 trust score & letter grade (A-F)
+- Structured rubric deductions (e.g., forced arbitration -15, data selling -25)
 - Data categories collected
 - Third-party sharing detection
 - User rights assessment
@@ -111,7 +112,7 @@ The system runs 3 parallel analyses:
 
 # C) Hidden Clause Detection
 - Finds dangerous terms: perpetual licenses, data selling, arbitration clauses
-- Grades transparency (1-10)
+- Categorized clause severity & impact assessment
 ```
 
 **5. Async Parallel Execution:**
@@ -423,7 +424,7 @@ if analysis_failed:
 
 | Feature | How It Works | Differentiator |
 |---------|-------------|-----------------|
-| **Risk Scoring** | AI analyzes policy, assigns 1-10 score + level | Quantified risk in seconds |
+| **Trust Scoring** | Deterministic rubric calculates 0–100 score + letter grade (A–F) | Mathematical, auditable compliance rating |
 | **Permission Mapping** | Maps policy text to 15 actual device permissions | Users know what to allow/deny |
 | **Hidden Clause Detection** | Focuses on 10 dangerous clause types | Finds what users/lawyers miss |
 | **Async Analysis** | Runs 3 analyses in parallel | 3x faster than competitors |
@@ -902,6 +903,25 @@ privashield-ai/
 | **Total** | **$2,600/month** | ≈ $0.0026/analysis |
 
 **ROI Opportunity**: Charge $0.99 per analysis = 50% margin
+
+---
+
+### Q21: How have you handled concurrency and synchronization issues to keep response times low and data consistent?
+
+**A:** 
+
+**1. Concurrency via Cooperative Multitasking (`asyncio`)**
+Instead of relying on traditional multi-threading, the project uses **Python's `asyncio`** (specifically functions like `asyncio.gather()`) to handle concurrent operations. 
+* **Why not multi-threading?** Multi-threading in Python is restricted by the Global Interpreter Lock (GIL) and introduces heavy OS-level thread overhead (eating memory and adding context-switching latency). 
+* **I/O Bound Optimization:** The system's primary bottlenecks are I/O bound tasks, such as waiting for HTTP scraping requests and waiting for LLM API responses. By using `async`/`await`, the event loop can pause execution while waiting for a network response and seamlessly switch to other tasks (like parsing permissions or scanning for hidden clauses). This keeps response times extremely low with virtually zero thread overhead.
+* **ASGI Server:** The backend relies on `uvicorn` to manage worker loops and handle client concurrency for the Python processes efficiently.
+
+**2. Client-Server Synchronization**
+To handle data synchronization between the frontend and the database, a **post-authentication synchronization service** is implemented. 
+* If a user utilizes the extension or web app anonymously, their history is temporarily stored in the browser's `localStorage`.
+* Upon logging in, this orchestration service automatically reads the offline, anonymous history items, pushes them to the backend database to sync the user's account, and then clears the local browser state to prevent conflicts.
+
+By relying on cooperative asynchronous tasks rather than manual thread locks (Mutexes/Semaphores), the architecture avoids common synchronization pitfalls like deadlocks and race conditions on the backend.
 
 ---
 
